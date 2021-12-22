@@ -37,10 +37,7 @@ class Node:
         self.with_water = with_water
         self.image = image_iterator(self.type, self.with_water, images_resized)
         aux1 = [True]
-        if self.type < 10:
-            aux2 = list(NODE_ACCESS[self.type // 2])
-        else:
-            aux2 = list(NODE_ACCESS[self.type - 10])
+        aux2 = list(NODE_ACCESS[self.type % 5])
         for i in range(1, 4):
             if len(aux2) != 0:
                 if i == aux2[0]:
