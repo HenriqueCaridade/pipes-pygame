@@ -36,6 +36,7 @@ Uma vez que todos os "nodes" recetores estam a receber água da fonte central o 
 ### Pacotes
 
 - Pygame
+- Numpy
 
 ### Tarefas
 
