@@ -63,6 +63,64 @@ def def_surrounding_nodes(node, mat):
             aux.append(BlankNode(pos))
     node.node_up, node.node_right, node.node_down, node.node_left = aux
 
+def everything_is_connected(mat):
+    for _ in mat:
+        for i in _:
+            if not i.with_water:
+                return False
+    return True
+
+def loops_exist(mat):
+    mat_copy = []
+    for row in mat:
+        aux = []
+        for i in row:
+            aux.append(Node(i.pos, i.rot, i.type, i.with_water))
+        mat_copy.append(aux)
+    # Check horizontal connections
+    for row in mat_copy:
+        for i in range(len(row) - 1):
+            node1 = row[i]
+            node2 = row[i + 1]
+            if node1.type == 0 or node2.type == 0:
+                continue
+            if node1.right:
+                node1.type -= 1
+                node2.type -= 1
+                node1.right = False
+                node2.left = False
+                if everything_is_connected(mat_copy):
+                    return True
+                node1.type += 1
+                node2.type += 1
+                node1.right = True
+                node2.left = True
+    # Check vertical connections
+    for rowi, row in enumerate(mat_copy):
+        for i in range(len(row) - 1):
+            node1 = mat[i][rowi]
+            node2 = mat[i + 1][rowi]
+            if node1.type == 0 or node2.type == 0:
+                continue
+            if node1.down:
+                node1.type -= 1
+                node2.type -= 1
+                node1.down = False
+                node2.up = False
+                if everything_is_connected(mat_copy):
+                    return True
+                node1.type += 1
+                node2.type += 1
+                node1.down = True
+                node2.up = True
+    return False
+
+def scrabble_matrix(mat):
+    for _ in mat:
+        for i in _:
+            i.rot = int(np.random.random() * 4)
+            i.update_rot()
+
 class Node:
     def __init__(self, pos, rot, n_type, with_water):
         self.pos = pos
@@ -71,6 +129,9 @@ class Node:
         self.with_water = with_water
         self.checked = False
         self.image = image_getter(self.type, self.with_water, images_resized)
+        self.update_rot()
+    
+    def update_rot(self):
         aux1 = [True]
         aux2 = list(NODE_ACCESS[self.type % 5])
         for i in range(1, 4):
@@ -177,31 +238,13 @@ def get_default_matrix(side_length):
     return matrix
 
 def get_tubulation(side_length):
-    np.random.seed(123456)
-    
-    matrix = [[None for i in range(side_length)] for j in range(side_length)]
     center_node_pos = (side_length // 2, side_length // 2)
-    center_node_type = int(np.random.random() * 4)
-    center_node_rot = int(np.random.random() * 4)
-    matrix[center_node_pos[0]][center_node_pos[1]] = Node(center_node_pos, center_node_rot, center_node_type)
-    stack = [center_node_pos]
-    for i in range(1, side_length ** 2):
-        curr_pos = stack.pop(0)
-        
-        available = []
-        for i in POS:
-            x, y = curr_pos[0] + i[0], curr_pos[1] + i[1]
-            if 0 <= x < side_length and 0 <= y < side_length:
-                if matrix[y][x] == None:
-                    stack.append((x, y))
-                    available.append(i)
-        
-        if available == []:
-            node_type = 4
-        else:
-            node_type = int(np.random.random() * 4)
-        node_rot = int(np.random.random() * 4)
-        matrix[curr_pos[0]][curr_pos[1]] = Node(curr_pos, node_rot, node_type)
+    matrix = [[Node((i,j),0, 5, False) if (i,j) != center_node_pos else Node((i,j), 0, 5, True) for i in range(side_length)] for j in range(side_length)]
+    horizontal_edges = {(((i, j), (i, j + 1)) for i in range(side_length)) for j in range(side_length - 1)}
+    vertical_edges = {(((i, j), (i + 1, j)) for i in range(side_length - 1)) for j in range(side_length)}
+    edges = vertical_edges | horizontal_edges
+    while not everything_is_connected(matrix) or loops_exist(matrix):
+        pass
     return matrix
 
 # --- Helper Functions --- #
@@ -321,8 +364,11 @@ while running:
                             
                             images_resized = resize_images(images_side_length, IMAGES)
                             game_matrix = get_default_matrix(ipt)
+                            scrabble_matrix(game_matrix)
                             x = len(game_matrix) // 2
                             game_matrix[x][x].check_connection(game_matrix)
+                            
+                            get_tubulation(ipt)
                         else:
                             error_text = ERRORS[input_check]
                             textbox_text = ""
