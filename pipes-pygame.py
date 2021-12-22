@@ -35,7 +35,7 @@ class Node:
         self.rot = rot
         self.type = n_type
         self.with_water = with_water
-        self.image = image_iterator(self.type, self.with_water, images_resized)
+        self.image = image_getter(self.type, self.with_water, images_resized)
         aux1 = [True]
         aux2 = list(NODE_ACCESS[self.type % 5])
         for i in range(1, 4):
@@ -68,7 +68,7 @@ def get_images():
         aux_dict[st + "_Source_Node"] = pygame.image.load("Images\\" + st + "_Source_Node.png")
     return aux_dict
 
-def image_iterator(n, water, images):
+def image_getter(n, water, images):
     # 15 images
     # 10 pieces
     # 5 variants
@@ -212,10 +212,6 @@ antialias = True
 in_starting_screen = True
 running = True
 
-# Image Test
-# image_iter = 0
-# curr_image = image_iterator(image_iter, IMAGES)
-
 while running:
     # --- Input Management --- #
     for ev in pygame.event.get():
@@ -230,10 +226,6 @@ while running:
                 else:
                     textbox_is_active = False
             if ev.type == pygame.KEYDOWN:
-                # Image Test
-                # if ev.key == pygame.K_i:
-                #     image_iter += 1
-                #     curr_image = image_iterator(image_iter, IMAGES)
                 if textbox_is_active:
                     if ev.key == pygame.K_BACKSPACE:
                         textbox_text = textbox_text[:-1]
@@ -306,9 +298,7 @@ while running:
         credits_surface = credits_font.render(credits_text, antialias, credits_color)
         screen.blit(credits_surface, ((SCREEN_SIZE[0] - credits_surface.get_width()) // 2,
                                     SCREEN_SIZE[1] // 8 * 6))
-    
-        # Image Test
-        # screen.blit(curr_image, (SCREEN_SIZE[0] // 2, SCREEN_SIZE[1] // 2))
+        
     else:
         # --- Game Screen --- #
         
