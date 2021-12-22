@@ -148,7 +148,7 @@ def in_canvas(ipt):
     down_bounds = GRID_ORIGIN[1] + GRID_SIZE
     return left_bounds <= ipt[0] < right_bounds and up_bounds <= ipt[1] < down_bounds
 
-SCREEN_SIZE = (1920, 1080)
+SCREEN_SIZE = (1920, 1080) # scalable
 COLORS = {"passive": pygame.Color((102, 102, 102)),
           "active": pygame.Color((99, 182, 230)),
           "error": pygame.Color((180, 30, 30)),
