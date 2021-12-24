@@ -29,6 +29,11 @@ pygame.init()
 
 POS = ((0, -1), (1, 0), (0, 1), (-1, 0))
 NODE_ACCESS = ((), (2,), (1,), (1, 2), (1, 2, 3))
+INVERSE_NODE_ACCESS = (((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1)),
+                       ((1,0,1,0), (0,1,0,1)),
+                       ((1,1,0,0), (0,1,1,0), (0,0,1,1), (1,0,0,1)),
+                       ((1,1,1,0), (0,1,1,1), (1,0,1,1), (1,1,0,1)),
+                       ((1,1,1,1),))
 
 class BlankNode:
     def __init__(self, pos):
@@ -41,9 +46,10 @@ class BlankNode:
         self.right = False
         self.left = False
         
-    def check_connection(mat):
+    def check_connection_helper(mat):
         pass
 
+# --- Helper Grid Fuctions --- #
 def clear_water(mat):
     for _ in mat:
         for i in _:
@@ -53,17 +59,13 @@ def clear_water(mat):
     mat[aux][aux].with_water = True
     mat[aux][aux].update_image()
 
-def def_surrounding_nodes(node, mat):
-    aux = []
-    for i in POS:
-        pos = (node.pos[0] + i[0], node.pos[1] + i[1])
-        if in_canvas_matrix(pos, mat):
-            aux.append(mat[pos[1]][pos[0]])
-        else:
-            aux.append(BlankNode(pos))
-    node.node_up, node.node_right, node.node_down, node.node_left = aux
+def clear_checks(mat):
+    for _ in mat:
+        for i in _:
+            i.checked = False
 
 def everything_is_connected(mat):
+    check_connection(mat)
     for _ in mat:
         for i in _:
             if not i.with_water:
@@ -75,61 +77,51 @@ def loops_exist(mat):
     for row in mat:
         aux = []
         for i in row:
-            aux.append(Node(i.pos, i.rot, i.type, i.with_water))
+            # cn = Node(i.pos, i.rot, i.type)
+            # cn.up, cn.right, cn.down, cn.left = i.up, i.right, i.down, i.left
+            aux.append(i.copy())
         mat_copy.append(aux)
+    for _ in mat_copy:
+        for i in _:
+            print(int(i.up), int(i.right), int(i.down), int(i.left), int(i.with_water), end = "\t")
+            i.def_surrounding_nodes(mat_copy)
+        print()
     # Check horizontal connections
     for row in mat_copy:
         for i in range(len(row) - 1):
             node1 = row[i]
             node2 = row[i + 1]
-            if node1.type == 0 or node2.type == 0:
-                continue
-            if node1.right:
-                node1.type -= 1
-                node2.type -= 1
-                node1.right = False
-                node2.left = False
-                if everything_is_connected(mat_copy):
-                    return True
-                node1.type += 1
-                node2.type += 1
-                node1.right = True
-                node2.left = True
+            prev_nodes = (node1.right, node2.left)
+            node1.right = False
+            node2.left = False
+            if everything_is_connected(mat_copy):
+                return True
+            node1.right, node2.left = prev_nodes
     # Check vertical connections
     for rowi, row in enumerate(mat_copy):
         for i in range(len(row) - 1):
-            node1 = mat[i][rowi]
-            node2 = mat[i + 1][rowi]
-            if node1.type == 0 or node2.type == 0:
-                continue
-            if node1.down:
-                node1.type -= 1
-                node2.type -= 1
-                node1.down = False
-                node2.up = False
-                if everything_is_connected(mat_copy):
-                    return True
-                node1.type += 1
-                node2.type += 1
-                node1.down = True
-                node2.up = True
+            node1 = mat_copy[i][rowi]
+            node2 = mat_copy[i + 1][rowi]
+            prev_nodes = (node1.down, node2.up)
+            node1.down = False
+            node2.up = False
+            if everything_is_connected(mat_copy):
+                return True
+            node1.down, node2.up = prev_nodes
     return False
 
-def scrabble_matrix(mat):
-    for _ in mat:
-        for i in _:
-            i.rot = int(np.random.random() * 4)
-            i.update_rot()
-
 class Node:
-    def __init__(self, pos, rot, n_type, with_water):
+    def __init__(self, pos, rot, n_type):
         self.pos = pos
         self.rot = rot 
         self.type = n_type
-        self.with_water = with_water
+        self.with_water = self.type >= 5
         self.checked = False
         self.image = image_getter(self.type, self.with_water, images_resized)
         self.update_rot()
+    
+    def copy(self):
+        return Node(self.pos, self.rot, self.type)
     
     def update_rot(self):
         aux1 = [True]
@@ -152,11 +144,32 @@ class Node:
     def click(self, mat):
         self.up, self.right, self.down, self.left = self.left, self.up, self.right, self.down
         self.rot = (self.rot + 1) % 4
-        clear_water(mat)
-        x = len(mat) // 2
-        mat[x][x].check_connection(mat)
+        check_connection(mat)
         
-    def check_connection(self, mat):
+    def def_surrounding_nodes(self, mat):
+        aux = []
+        for i in POS:
+            pos = (self.pos[0] + i[0], self.pos[1] + i[1])
+            if in_canvas_matrix(pos, mat):
+                aux.append(mat[pos[1]][pos[0]])
+            else:
+                aux.append(BlankNode(pos))
+        self.node_up, self.node_right, self.node_down, self.node_left = aux
+    
+    def def_type_rot_image(self):
+        aux = (int(self.up), int(self.right), int(self.down), int(self.left))
+        for tp, _ in enumerate(INVERSE_NODE_ACCESS):
+            for rot, i in enumerate(_):
+                if aux == i: 
+                    if self.type < 5:
+                        self.type = tp
+                    else:
+                        self.type = tp + 5
+                    self.rot = rot
+                    self.update_image()
+                    return
+    
+    def check_connection_helper(self, mat):
         self.checked = True
         # Conections
         connections = [self.up and self.node_up.down,
@@ -174,16 +187,22 @@ class Node:
                 self.with_water = True
         if self.with_water:
             if connections[0] and not self.node_up.checked:
-                self.node_up.check_connection(mat)
+                self.node_up.check_connection_helper(mat)
             if connections[1] and not self.node_right.checked:
-                self.node_right.check_connection(mat)
+                self.node_right.check_connection_helper(mat)
             if connections[2] and not self.node_down.checked:
-                self.node_down.check_connection(mat)
+                self.node_down.check_connection_helper(mat)
             if connections[3] and not self.node_left.checked:
-                self.node_left.check_connection(mat)
+                self.node_left.check_connection_helper(mat)
         if temp != self.with_water:
             self.image = image_getter(self.type, self.with_water, images_resized)
-        self.checked = False
+            
+def check_connection(mat):
+    clear_water(mat)
+    x = len(mat) // 2
+    mat[x][x].check_connection_helper(mat)
+    clear_checks(mat)
+
 
 # --- Image Management Functions --- #
 def get_images():
@@ -228,23 +247,146 @@ def resize_images(side, images):
         aux_dict[st + "_Source_Node"] = pygame.transform.scale(images[st + "_Source_Node"], image_size)
     return aux_dict
 
-# Grid Test
-def get_default_matrix(side_length):
+# --- Grid Functions --- #
+def scrabble_matrix(mat):
+    for _ in mat:
+        for i in _:
+            i.rot = np.random.randint(4)
+            i.update_rot()
+
+def get_testing_matrix(side_length):
     center_node_pos = (side_length // 2, side_length // 2)
-    matrix = [[Node((i, j), 1, 3, False) if (i,j) != center_node_pos else Node((i,j), 0, 9, True) for i in range(side_length)] for j in range(side_length)]
+    matrix = []
+    for row in range(side_length):
+        aux = []
+        for col in range(side_length):
+            if (row, col) == center_node_pos:
+                cn = Node(center_node_pos, 0, 9)
+            elif row == center_node_pos[0]:
+                if col > center_node_pos[0]:
+                    if col == side_length - 1:
+                        tp = 2
+                        rot = 2
+                    else:
+                        tp = 3
+                        rot = 1
+                else:
+                    if col == 0:
+                        tp = 2
+                        rot = 0
+                    else:
+                        tp = 3
+                        rot = 3
+                cn = Node((col, row), rot, tp)
+            elif col == center_node_pos[0]:
+                if row > center_node_pos[0]:
+                    if row == side_length - 1:
+                        tp = 2
+                        rot = 3
+                    else:
+                        tp = 3
+                        rot = 2
+                else:
+                    if row == 0:
+                        tp = 2
+                        rot = 1
+                    else:
+                        tp = 3
+                        rot = 0
+                cn = Node((col, row), rot, tp)
+            elif row < center_node_pos[0] and col > center_node_pos[0] or row > center_node_pos[0] and col < center_node_pos[0]:
+                if col == 0:
+                    tp = 0
+                    rot = 1
+                elif col == side_length - 1:
+                    tp = 0
+                    rot = 3
+                else:
+                    tp = 1
+                    rot = 1
+                cn = Node((col, row), rot, tp)
+            else:
+                if row == 0:
+                    tp = 0
+                    rot = 2
+                elif row == side_length - 1:
+                    tp = 0
+                    rot = 0
+                else:
+                    tp = 1
+                    rot = 0
+                cn = Node((col, row), rot, tp)
+            aux.append(cn)
+        matrix.append(aux)
     for _ in matrix:
         for i in _:
-            def_surrounding_nodes(i, matrix)
+            i.def_surrounding_nodes(matrix)
     return matrix
 
-def get_tubulation(side_length):
+def get_tubulation(side_length): # Not working yet
     center_node_pos = (side_length // 2, side_length // 2)
-    matrix = [[Node((i,j),0, 5, False) if (i,j) != center_node_pos else Node((i,j), 0, 5, True) for i in range(side_length)] for j in range(side_length)]
-    horizontal_edges = {(((i, j), (i, j + 1)) for i in range(side_length)) for j in range(side_length - 1)}
-    vertical_edges = {(((i, j), (i + 1, j)) for i in range(side_length - 1)) for j in range(side_length)}
-    edges = vertical_edges | horizontal_edges
-    while not everything_is_connected(matrix) or loops_exist(matrix):
-        pass
+    matrix = []
+    for row in range(side_length):
+        aux = []
+        for col in range(side_length):
+            if (row, col) != center_node_pos:
+                tp = 4
+                rot = 0
+                if row == 0 or row == side_length - 1:
+                    tp -= 1
+                if col == 0 or col == side_length - 1:
+                    tp -= 1
+                if row == 0 and 0 <= col < side_length - 1:
+                    rot = 1
+                elif col == side_length - 1 and 0 <= row < side_length - 1:
+                    rot = 2
+                elif row == side_length - 1 and 0 < col < side_length:
+                    rot = 3
+                aux.append(Node((col, row), rot, tp))
+            else: 
+                aux.append(Node(center_node_pos, 0, 9))
+        matrix.append(aux)
+    for _ in matrix:
+        for i in _:
+            i.def_surrounding_nodes(matrix)
+    # horizontal_edges = [f"{i}-{j}-{i}-{j + 1}" for i in range(side_length) for j in range(side_length - 1)]
+    # vertical_edges = [f"{i}-{j}-{i + 1}-{j}" for i in range(side_length - 1) for j in range(side_length)]
+    # edges = horizontal_edges + vertical_edges
+    # aux = loops_exist(matrix)
+    # exited = False
+    # while aux:
+    #     aux1 = everything_is_connected(matrix)
+    #     while aux1:
+    #         edge_aux1 = np.random.choice(edges)
+    #         edge_aux = edge_aux1.split("-")
+    #         edge = ((int(edge_aux[0]), int(edge_aux[1])), (int(edge_aux[2]), int(edge_aux[3])))
+    #         pos1, pos2 = edge
+    #         direction = (pos1[0] - pos2[0], pos1[1] - pos2[1])
+    #         node1 = matrix[pos1[1]][pos1[0]]
+    #         node2 = matrix[pos2[1]][pos2[0]]
+    #         if direction == (0, -1):
+    #             node1.down = False
+    #             node2.up = False
+    #         elif direction == (-1, 0):
+    #             node1.left = False
+    #             node2.right = False
+    #         edges.remove(edge_aux1)
+    #         aux1 = everything_is_connected(matrix)
+    #         print("Connected:", aux1)
+    #         exited = True
+    #     if exited:
+    #         exited = False
+    #         if direction == (0, -1):
+    #             node1.down = True
+    #             node2.up = True
+    #         elif direction == (-1, 0):
+    #             node1.left = True
+    #             node2.right = True
+    #     aux = loops_exist(matrix)
+    #     print("Loops:", aux)
+    for _ in matrix:
+        for i in _:
+            i.def_type_rot_image()
     return matrix
 
 # --- Helper Functions --- #
@@ -328,6 +470,7 @@ antialias = True
 
 in_starting_screen = True
 running = True
+testing = False
 
 # --- Game Loop --- #
 while running:
@@ -349,6 +492,12 @@ while running:
                         textbox_text = textbox_text[:-1]
                     elif ev.key == pygame.K_RETURN:
                         input_check = input_is_valid(textbox_text, grid_size_BOUNDS)
+                        if input_check == "OutOfRange":
+                            if int(textbox_text) == 1432:
+                                testing = True
+                            else:
+                                testing = False
+                                textbox_text = ""
                         if input_check == "Clear":
                             ipt = int(textbox_text)
                             in_starting_screen = False
@@ -359,16 +508,21 @@ while running:
                             grid_size -= difference
                             grid_origin = (grid_origin[0] + difference // 2, grid_origin[1] + difference // 2)
                             grid_back_rect_screen = pygame.Surface((grid_size, grid_size))
-                            grid_back_rect_screen.set_alpha(180)
+                            grid_back_rect_screen.set_alpha(160)
                             grid_back_rect_screen.fill(COLORS["grid_back"])
                             
                             images_resized = resize_images(images_side_length, IMAGES)
-                            game_matrix = get_default_matrix(ipt)
-                            scrabble_matrix(game_matrix)
-                            x = len(game_matrix) // 2
-                            game_matrix[x][x].check_connection(game_matrix)
                             
-                            get_tubulation(ipt)
+                            if testing:
+                                game_matrix = get_testing_matrix(ipt)
+                            else:
+                                game_matrix = get_tubulation(ipt)
+                                
+                                horizontal_edges = [f"{i}-{j}-{i}-{j + 1}" for i in range(ipt) for j in range(ipt - 1)]
+                                vertical_edges = [f"{i}-{j}-{i + 1}-{j}" for i in range(ipt - 1) for j in range(ipt)]
+                                edges = horizontal_edges + vertical_edges
+                            # scrabble_matrix(game_matrix)
+                            check_connection(game_matrix)
                         else:
                             error_text = ERRORS[input_check]
                             textbox_text = ""
@@ -398,6 +552,45 @@ while running:
                         grid_origin = (0, (SCREEN_SIZE[1] - SCREEN_SIZE[0]) // 2)
                     else:
                         grid_origin = ((SCREEN_SIZE[0] - SCREEN_SIZE[1]) // 2, 0)
+                elif ev.key == pygame.K_l:
+                    print("Loops Test:", loops_exist(game_matrix))
+                elif ev.key == pygame.K_c:
+                    print("Connections Test:", everything_is_connected(game_matrix))
+                elif ev.key == pygame.K_n:
+                    edge_aux1 = np.random.choice(edges)
+                    edge_aux = edge_aux1.split("-")
+                    edge = ((int(edge_aux[0]), int(edge_aux[1])), (int(edge_aux[2]), int(edge_aux[3])))
+                    pos1, pos2 = edge
+                    direction = (pos1[0] - pos2[0], pos1[1] - pos2[1])
+                    node1 = game_matrix[pos1[1]][pos1[0]]
+                    node2 = game_matrix[pos2[1]][pos2[0]]
+                    print("Before Node1:", int(node1.up), int(node1.right), int(node1.down), int(node1.left), int(node1.with_water), node1.pos)
+                    print("Before Node2:", int(node2.up), int(node2.right), int(node2.down), int(node2.left), int(node2.with_water), node2.pos)
+                    if direction == (0, -1):
+                        node1.down = False
+                        node2.up = False
+                    elif direction == (-1, 0):
+                        node1.right = False
+                        node2.left = False
+                    edges.remove(edge_aux1)
+                    aux1 = everything_is_connected(game_matrix)
+                    print("Connected:", aux1)
+                    aux = loops_exist(game_matrix)
+                    print("Loops:", aux)
+                    print("After Node1:", int(node1.up), int(node1.right), int(node1.down), int(node1.left), int(node1.with_water), node1.pos)
+                    print("After Node2:", int(node2.up), int(node2.right), int(node2.down), int(node2.left), int(node2.with_water), node2.pos)
+                    node1.def_type_rot_image()
+                    node2.def_type_rot_image()
+                elif ev.key  == pygame.K_b:
+                    if direction == (0, -1):
+                        node1.down = True
+                        node2.up = True
+                    elif direction == (-1, 0):
+                        node1.right = True
+                        node2.left = True
+                    node1.def_type_rot_image()
+                    node2.def_type_rot_image()
+                    check_connection(game_matrix)
     
     # --- Display Screen --- #
     screen.fill(BACKGROUND_COLOR)
