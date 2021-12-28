@@ -10,6 +10,7 @@ https://www.puzzle-pipes.com
 
 import pygame
 import numpy as np
+from time import perf_counter
 
 def main():
     pygame.init()
@@ -338,23 +339,31 @@ def main():
         mat_len = len(mat)
         return 0 <= pos[0] < mat_len and 0 <= pos[1] < mat_len
     
-    def in_canvas_pixels(ipt):
+    def in_canvas_pixels(ipt: tuple[int]):
         left_bounds = grid_origin[0]
         right_bounds = grid_origin[0] + grid_size
         up_bounds = grid_origin[1]
         down_bounds = grid_origin[1] + grid_size
         return left_bounds <= ipt[0] < right_bounds and up_bounds <= ipt[1] < down_bounds
     
+    def time_formatter(time: float):
+        minutes = str(int(time / 60))
+        seconds = str(int(time % 60))
+        return minutes.zfill(2) + ":" + seconds.zfill(2)
+        
     # --- Constants & Variables --- #
-    SCREEN_SIZE = (1920, 1080) # Scalable
+    SCREEN_SIZE = (800, 600) # Scalable
     COLORS = {"passive": pygame.Color((102, 102, 102)),
               "active": pygame.Color((99, 182, 230)),
+              "white": pygame.Color((255, 255, 255)),
+              "background": pygame.Color((64, 64, 64)),
+              "timer": pygame.Color((0, 120, 255)), 
               "error": pygame.Color((180, 30, 30)),
               "grid_back": pygame.Color((170, 170, 170)),
               "grid_back_loop": pygame.Color((200, 100, 100)),
               "grid_lines": pygame.Color((220, 220, 220)),
               "victory": pygame.Color((0, 200, 0))}
-    BACKGROUND_COLOR = (64, 64, 64)
+    BACKGROUND_COLOR = COLORS["background"]
     
     grid_size = min(SCREEN_SIZE)
     if SCREEN_SIZE[0] <= SCREEN_SIZE[1]:
@@ -368,13 +377,14 @@ def main():
     screen = pygame.display.set_mode(SCREEN_SIZE, pygame.SRCALPHA)
     pygame.display.set_caption("Pygame Pipes")
     
+    # Starting Screen Variables
     TEXTBOX_SIZE = (SCREEN_SIZE[0] // 8, SCREEN_SIZE[1] // 8)
     TEXTBOX_POS = (SCREEN_SIZE[0] // 2 - TEXTBOX_SIZE[0] // 2, SCREEN_SIZE[1] // 2)
     TEXTBOX_PADDING = TEXTBOX_SIZE[1] // 10
     textbox_rect = pygame.Rect(TEXTBOX_POS, TEXTBOX_SIZE)
     textbox_color = COLORS["passive"]
     textbox_text = ""
-    textbox_text_color = (255, 255, 255)
+    textbox_text_color = COLORS["white"]
     textbox_font = pygame.font.Font(None, TEXTBOX_SIZE[1])
     textbox_is_active = False
     
@@ -393,23 +403,31 @@ def main():
     INFO_MARGIN = SCREEN_SIZE[1] // 120
     info_text = f"Size must be between {grid_size_BOUNDS[0]} and {grid_size_BOUNDS[1]}."
     info_color = COLORS["passive"]
-    info_font = pygame.font.Font(None, SCREEN_SIZE[1] //12)
+    info_font = pygame.font.Font(None, SCREEN_SIZE[1] // 12)
     
     credits_text =  "Made by Henrique Caridade"
     credits_color = COLORS["passive"]
-    credits_font = pygame.font.Font(None, SCREEN_SIZE[1] // 16)
+    credits_font = pygame.font.Font(None, SCREEN_SIZE[1] // 8)
     
-    grid_back_text = "PIPES"
-    grid_back_color = COLORS["passive"]
-    grid_back_font = pygame.font.Font(None, SCREEN_SIZE[1] // 3 * 2)
-    
+    # Game Screen Variables
     victory_text = ""
     victory_color = COLORS["victory"]
     victory_font = pygame.font.Font(None, SCREEN_SIZE[1] // 3)
     
+    timer_text = "00:00"
+    timer_color = COLORS["timer"]
+    timer_font = pygame.font.Font(None, SCREEN_SIZE[1] // 2)
+    
+    victory_timer_text = ""
+    victory_timer_color = COLORS["victory"]
+    victory_timer_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
+    
+    grid_back_alpha = 150
+    images_alpha = 225
     antialias = True
     
-    in_starting_screen = True
+    # Other Variables
+    curr_screen = "starting"
     running = True
     victory = False
     
@@ -420,13 +438,14 @@ def main():
             if ev.type == pygame.QUIT:
                 running = False
                 continue
-            if in_starting_screen:
+            if curr_screen == "starting":
                 # --- Starting Screen Inputs --- #
                 if ev.type == pygame.MOUSEBUTTONDOWN:
-                    if textbox_rect.collidepoint(ev.pos):
-                        textbox_is_active = True
-                    else:
-                        textbox_is_active = False
+                    if ev.button == 1:
+                        if textbox_rect.collidepoint(ev.pos):
+                            textbox_is_active = True
+                        else:
+                            textbox_is_active = False
                 if ev.type == pygame.KEYDOWN:
                     if textbox_is_active:
                         if ev.key == pygame.K_BACKSPACE:
@@ -435,7 +454,7 @@ def main():
                             input_check = input_is_valid(textbox_text, grid_size_BOUNDS)
                             if input_check == "Clear":
                                 ipt = int(textbox_text)
-                                in_starting_screen = False
+                                curr_screen = "game"
                                 error_text = ERRORS["Clear"]
                                 
                                 images_side_length = grid_size // ipt
@@ -443,7 +462,7 @@ def main():
                                 grid_size -= difference
                                 grid_origin = (grid_origin[0] + difference // 2, grid_origin[1] + difference // 2)
                                 grid_back_rect_screen = pygame.Surface((grid_size, grid_size))
-                                grid_back_rect_screen.set_alpha(150)
+                                grid_back_rect_screen.set_alpha(grid_back_alpha)
                                 curr_back_color = COLORS["grid_back"]
                                 
                                 images_resized = resize_images(images_side_length, IMAGES)
@@ -452,6 +471,7 @@ def main():
                                 
                                 scrabble_matrix(game_matrix)
                                 check_connection(game_matrix)
+                                start_time = perf_counter()
                             else:
                                 error_text = ERRORS[input_check]
                                 textbox_text = ""
@@ -459,37 +479,41 @@ def main():
                             char = ev.unicode
                             if char.isnumeric():
                                 textbox_text += char
-            else:
+            elif curr_screen == "game":
                 # --- Game Screen Inputs --- #
                 if not victory:
                     if ev.type == pygame.MOUSEBUTTONDOWN:
-                        mouse_click = ev.pos
-                        if in_canvas_pixels(mouse_click):    
-                            mat_coords = ((mouse_click[0] - grid_origin[0]) // images_side_length,
-                                          (mouse_click[1] - grid_origin[1]) // images_side_length,)
-                            curr_node = game_matrix[mat_coords[1]][mat_coords[0]]
-                            edges, victory = curr_node.click(game_matrix)
-                            if loops_exist(game_matrix, edges):
-                                curr_back_color = COLORS["grid_back_loop"]
-                            else:
-                                curr_back_color = COLORS["grid_back"]
-                            if victory:
-                                victory_text = "VICTORY"
-                elif ev.type == pygame.KEYDOWN:
+                        if ev.button == 1:
+                            mouse_click = ev.pos
+                            if in_canvas_pixels(mouse_click):    
+                                mat_coords = ((mouse_click[0] - grid_origin[0]) // images_side_length,
+                                              (mouse_click[1] - grid_origin[1]) // images_side_length,)
+                                curr_node = game_matrix[mat_coords[1]][mat_coords[0]]
+                                edges, victory = curr_node.click(game_matrix)
+                                if loops_exist(game_matrix, edges):
+                                    curr_back_color = COLORS["grid_back_loop"]
+                                else:
+                                    curr_back_color = COLORS["grid_back"]
+                                if victory:
+                                    victory_text = "VICTORY"
+                                    victory_timer_text = time_formatter(perf_counter() - start_time)
+                if ev.type == pygame.KEYDOWN:
                     if ev.key == pygame.K_RETURN:
-                        in_starting_screen = True
+                        curr_screen = "starting"
                         victory = False
                         victory_text = ""
+                        victory_timer_text = ""
+                        timer_text = "00:00"
                         grid_size = min(SCREEN_SIZE)
                         if SCREEN_SIZE[0] <= SCREEN_SIZE[1]:
                             grid_origin = (0, (SCREEN_SIZE[1] - SCREEN_SIZE[0]) // 2)
                         else:
                             grid_origin = ((SCREEN_SIZE[0] - SCREEN_SIZE[1]) // 2, 0)
-    
+                    
         # --- Display Screen --- #
         screen.fill(BACKGROUND_COLOR)
         
-        if in_starting_screen:
+        if curr_screen == "starting":
             # --- Starting Screen --- #
             
             # Text Box Color
@@ -511,7 +535,7 @@ def main():
             textbox_surface_pos = (textbox_rect.left + TEXTBOX_PADDING, textbox_rect.bottom - textbox_surface.get_height() - TEXTBOX_PADDING)
             screen.blit(textbox_surface, textbox_surface_pos)
             
-            # Info
+            # Info Text
             info_surface = info_font.render(info_text, antialias, info_color)
             screen.blit(info_surface, ((SCREEN_SIZE [0] - info_surface.get_width()) // 2,
                                         textbox_rect.top - info_surface.get_height() - INFO_MARGIN))
@@ -524,15 +548,18 @@ def main():
             # Credits
             credits_surface = credits_font.render(credits_text, antialias, credits_color)
             screen.blit(credits_surface, ((SCREEN_SIZE[0] - credits_surface.get_width()) // 2,
-                                        SCREEN_SIZE[1] // 8 * 6))
+                                        SCREEN_SIZE[1] // 8 * 7))
             
-        else:
+        elif curr_screen == "game":
             # --- Game Screen --- #
-            
-            # PIPES Text Behind Grid
-            grid_back_surface = grid_back_font.render(grid_back_text, antialias, grid_back_color)
-            screen.blit(grid_back_surface, ((SCREEN_SIZE[0] - grid_back_surface.get_width()) // 2,
-                                            (SCREEN_SIZE[1] - grid_back_surface.get_height()) // 2))
+            if not victory:
+                total_time = perf_counter() - start_time
+                timer_text = time_formatter(total_time)
+                
+            # Timer Behind Grid
+            timer_surface = timer_font.render(timer_text, antialias, timer_color)
+            screen.blit(timer_surface, ((SCREEN_SIZE[0] - timer_surface.get_width()) // 2,
+                                            (SCREEN_SIZE[1] - timer_surface.get_height()) // 2))
             
             # Grid Background
             grid_back_rect_screen.fill(curr_back_color)
@@ -549,22 +576,28 @@ def main():
                 for item in row:
                     image = item.image
                     image = pygame.transform.rotate(image, - 90 * item.rot)
+                    image.set_alpha(images_alpha)
                     image_pos = (grid_origin[0] + item.pos[0] * images_side_length,
                                  grid_origin[1] + item.pos[1] * images_side_length)
                     screen.blit(image, image_pos)
             
-            # Victory Check
+            # Victory Text
             victory_surface = victory_font.render(victory_text, antialias, victory_color)
             screen.blit(victory_surface, ((SCREEN_SIZE[0] - victory_surface.get_width()) // 2,
                                             (SCREEN_SIZE[1] - victory_surface.get_height()) // 2))
             
-            
+            # Victory Timer Text
+            victory_timer_surface = victory_timer_font.render(victory_timer_text, antialias, victory_timer_color)
+            screen.blit(victory_timer_surface, ((SCREEN_SIZE[0] - victory_timer_surface.get_width()) // 2,
+                                                (SCREEN_SIZE[1] - victory_timer_surface.get_height()) // 3 * 2))
+        
         # Center Check
-        # pygame.draw.circle(screen, (0, 0, 0), (SCREEN_SIZE[0] // 2, SCREEN_SIZE[1] // 2), 5)
+        # pygame.draw.line(screen, (0, 0, 0), (SCREEN_SIZE[0] // 2, 0), (SCREEN_SIZE[0] // 2, SCREEN_SIZE[1]))
+        # pygame.draw.line(screen, (0, 0, 0), (0, SCREEN_SIZE[1] // 2), (SCREEN_SIZE[0], SCREEN_SIZE[1] // 2))
         
         # Refresh Screen
         pygame.display.flip()
-        
+    
     pygame.quit()
 
 if __name__ == "__main__":
