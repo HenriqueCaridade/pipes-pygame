@@ -37,7 +37,7 @@ def main():
                            ((1,1,1,1),))
     
     class BlankNode:
-        def __init__(self, pos: tuple):
+        def __init__(self, pos: tuple[int]):
             self.pos = pos
             self.rot = 0
             self.type = 0
@@ -48,7 +48,7 @@ def main():
             self.left = False
     
     # --- Helper Grid Fuctions --- #
-    def clear_water(mat: list[list[int]]):
+    def clear_water(mat: list[list]):
         for _ in mat:
             for i in _:
                 i.with_water = False
@@ -57,12 +57,12 @@ def main():
         mat[aux][aux].with_water = True
         mat[aux][aux].update_image()
     
-    def clear_checks(mat: list[list[int]]):
+    def clear_checks(mat: list[list]):
         for _ in mat:
             for i in _:
                 i.checked = False
     
-    def everything_is_connected(mat: list[list[int]]) -> bool:
+    def everything_is_connected(mat: list[list]) -> bool:
         check_connection(mat)
         for _ in mat:
             for i in _:
@@ -70,7 +70,7 @@ def main():
                     return False
         return True
     
-    def how_many_are_connected(mat: list[list[int]]) -> int:
+    def how_many_are_connected(mat: list[list]) -> int:
         check_connection(mat)
         aux = 0
         for _ in mat:
@@ -79,7 +79,7 @@ def main():
                     aux += 1
         return aux
     
-    def loops_exist(mat: list[list[int]], edges: list) -> bool:
+    def loops_exist(mat: list[list], edges: list) -> bool:
         before = how_many_are_connected(mat)
         for i in edges:
             edge_aux = i.split("-")
@@ -102,7 +102,7 @@ def main():
         check_connection(mat)
         return False
     
-    def check_victory(mat: list[list[int]]):
+    def check_victory(mat: list[list]):
         for _ in mat:
             for i in _:
                 if not i.with_water:
@@ -140,13 +140,13 @@ def main():
         def update_image(self):
             self.image = image_getter(self.type, self.with_water, images_resized)
         
-        def click(self, mat: list[list[int]]):
+        def click(self, mat: list[list]):
             self.up, self.right, self.down, self.left = self.left, self.up, self.right, self.down
             self.rot = (self.rot + 1) % 4
             edges = check_connection(mat)
             return edges, check_victory(mat)
             
-        def def_surrounding_nodes(self, mat: list[list[int]]):
+        def def_surrounding_nodes(self, mat: list[list]):
             aux = []
             for i in POS:
                 pos = (self.pos[0] + i[0], self.pos[1] + i[1])
@@ -169,7 +169,7 @@ def main():
                         self.update_image()
                         return
         
-        def check_connection_helper(self, mat: list[list[int]]) -> list:
+        def check_connection_helper(self, mat: list[list]) -> list:
             self.checked = True
             # Conections
             connections = [self.up and self.node_up.down,
@@ -207,7 +207,7 @@ def main():
             self.image = image_getter(self.type, self.with_water, images_resized)
             return edges
                 
-    def check_connection(mat: list[list[int]]) -> list:
+    def check_connection(mat: list[list]) -> list:
         clear_water(mat)
         x = len(mat) // 2
         edges = mat[x][x].check_connection_helper(mat)
@@ -258,82 +258,13 @@ def main():
         return aux_dict
     
     # --- Grid Functions --- #
-    def scrabble_matrix(mat: list[list[int]]):
+    def scrabble_matrix(mat: list[list]):
         for _ in mat:
             for i in _:
                 i.rot = np.random.randint(4)
                 i.update_rot()
     
-    def get_testing_matrix(side_length: int):
-        center_node_pos = (side_length // 2, side_length // 2)
-        matrix = []
-        for row in range(side_length):
-            aux = []
-            for col in range(side_length):
-                if (row, col) == center_node_pos:
-                    cn = Node(center_node_pos, 0, 9)
-                elif row == center_node_pos[0]:
-                    if col > center_node_pos[0]:
-                        if col == side_length - 1:
-                            tp = 2
-                            rot = 2
-                        else:
-                            tp = 3
-                            rot = 1
-                    else:
-                        if col == 0:
-                            tp = 2
-                            rot = 0
-                        else:
-                            tp = 3
-                            rot = 3
-                    cn = Node((col, row), rot, tp)
-                elif col == center_node_pos[0]:
-                    if row > center_node_pos[0]:
-                        if row == side_length - 1:
-                            tp = 2
-                            rot = 3
-                        else:
-                            tp = 3
-                            rot = 2
-                    else:
-                        if row == 0:
-                            tp = 2
-                            rot = 1
-                        else:
-                            tp = 3
-                            rot = 0
-                    cn = Node((col, row), rot, tp)
-                elif row < center_node_pos[0] and col > center_node_pos[0] or row > center_node_pos[0] and col < center_node_pos[0]:
-                    if col == 0:
-                        tp = 0
-                        rot = 1
-                    elif col == side_length - 1:
-                        tp = 0
-                        rot = 3
-                    else:
-                        tp = 1
-                        rot = 1
-                    cn = Node((col, row), rot, tp)
-                else:
-                    if row == 0:
-                        tp = 0
-                        rot = 2
-                    elif row == side_length - 1:
-                        tp = 0
-                        rot = 0
-                    else:
-                        tp = 1
-                        rot = 0
-                    cn = Node((col, row), rot, tp)
-                aux.append(cn)
-            matrix.append(aux)
-        for _ in matrix:
-            for i in _:
-                i.def_surrounding_nodes(matrix)
-        return matrix
-    
-    def get_tubulation(side_length: int):
+    def get_tubulation(side_length: int) -> list[list]:
         center_node_pos = (side_length // 2, side_length // 2)
         matrix = []
         for row in range(side_length):
@@ -403,7 +334,7 @@ def main():
                 return "OutOfRange"
         return "Length"
     
-    def in_canvas_matrix(pos: tuple[int], mat: list[list[int]]):
+    def in_canvas_matrix(pos: tuple[int], mat: list[list]):
         mat_len = len(mat)
         return 0 <= pos[0] < mat_len and 0 <= pos[1] < mat_len
     
@@ -419,9 +350,9 @@ def main():
     COLORS = {"passive": pygame.Color((102, 102, 102)),
               "active": pygame.Color((99, 182, 230)),
               "error": pygame.Color((180, 30, 30)),
-              "grid_back": pygame.Color((140, 140, 140)),
-              "grid_back_loop": pygame.Color((100, 50, 50)),
-              "grid_lines": pygame.Color((200, 200, 200)),
+              "grid_back": pygame.Color((170, 170, 170)),
+              "grid_back_loop": pygame.Color((200, 100, 100)),
+              "grid_lines": pygame.Color((220, 220, 220)),
               "victory": pygame.Color((0, 200, 0))}
     BACKGROUND_COLOR = (64, 64, 64)
     
@@ -512,7 +443,7 @@ def main():
                                 grid_size -= difference
                                 grid_origin = (grid_origin[0] + difference // 2, grid_origin[1] + difference // 2)
                                 grid_back_rect_screen = pygame.Surface((grid_size, grid_size))
-                                grid_back_rect_screen.set_alpha(160)
+                                grid_back_rect_screen.set_alpha(150)
                                 curr_back_color = COLORS["grid_back"]
                                 
                                 images_resized = resize_images(images_side_length, IMAGES)
