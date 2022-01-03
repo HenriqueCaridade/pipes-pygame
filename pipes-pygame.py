@@ -361,7 +361,7 @@ def main():
               "active": pygame.Color((99, 182, 230)),
               "white": pygame.Color((255, 255, 255)),
               "background": pygame.Color((64, 64, 64)),
-              "timer": pygame.Color((0, 120, 255)), 
+              "timer": pygame.Color((255, 255, 255)), 
               "error": pygame.Color((180, 30, 30)),
               "grid_back": pygame.Color((170, 170, 170)),
               "grid_back_loop": pygame.Color((200, 100, 100)),
@@ -432,7 +432,6 @@ def main():
     loading_font = pygame.font.Font(None, SCREEN_SIZE[1] // 4)
     
     grid_back_alpha = 150
-    images_alpha = 225
     antialias = True
     
     # Other Variables
@@ -592,7 +591,6 @@ def main():
                 for item in row:
                     image = item.image
                     image = pygame.transform.rotate(image, - 90 * item.rot)
-                    image.set_alpha(images_alpha)
                     image_pos = (grid_origin[0] + item.pos[0] * images_side_length,
                                  grid_origin[1] + item.pos[1] * images_side_length)
                     screen.blit(image, image_pos)
