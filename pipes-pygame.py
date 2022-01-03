@@ -141,9 +141,13 @@ def main():
         def update_image(self):
             self.image = image_getter(self.type, self.with_water, images_resized)
         
-        def click(self, mat: list[list]):
-            self.up, self.right, self.down, self.left = self.left, self.up, self.right, self.down
-            self.rot = (self.rot + 1) % 4
+        def click(self, mat: list[list], clockwise: bool):
+            if clockwise:
+                self.up, self.right, self.down, self.left = self.left, self.up, self.right, self.down
+                self.rot = (self.rot + 1) % 4
+            else:
+                self.up, self.right, self.down, self.left = self.right, self.down, self.left, self.up
+                self.rot = (self.rot - 1) % 4
             edges = check_connection(mat)
             return edges, check_victory(mat)
             
@@ -352,7 +356,7 @@ def main():
         return minutes.zfill(2) + ":" + seconds.zfill(2)
         
     # --- Constants & Variables --- #
-    SCREEN_SIZE = (800, 600) # Scalable
+    SCREEN_SIZE = (1280, 720) # Scalable
     COLORS = {"passive": pygame.Color((102, 102, 102)),
               "active": pygame.Color((99, 182, 230)),
               "white": pygame.Color((255, 255, 255)),
@@ -362,7 +366,8 @@ def main():
               "grid_back": pygame.Color((170, 170, 170)),
               "grid_back_loop": pygame.Color((200, 100, 100)),
               "grid_lines": pygame.Color((220, 220, 220)),
-              "victory": pygame.Color((0, 200, 0))}
+              "victory": pygame.Color((0, 200, 0)),
+              "loading": pygame.Color((200, 200, 200))}
     BACKGROUND_COLOR = COLORS["background"]
     
     grid_size = min(SCREEN_SIZE)
@@ -422,6 +427,10 @@ def main():
     victory_timer_color = COLORS["victory"]
     victory_timer_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
     
+    loading_text = "Loading..."
+    loading_color = COLORS["loading"]
+    loading_font = pygame.font.Font(None, SCREEN_SIZE[1] // 4)
+    
     grid_back_alpha = 150
     images_alpha = 225
     antialias = True
@@ -467,6 +476,12 @@ def main():
                                 
                                 images_resized = resize_images(images_side_length, IMAGES)
                                 
+                                # Loading Text
+                                loading_surface = loading_font.render(loading_text, antialias, loading_color)
+                                screen.blit(loading_surface, ((SCREEN_SIZE[0] - loading_surface.get_width()) // 2,
+                                                              (SCREEN_SIZE[1] - loading_surface.get_height()) // 16 * 13))
+                                pygame.display.flip()
+                                
                                 game_matrix = get_tubulation(ipt)
                                 
                                 scrabble_matrix(game_matrix)
@@ -483,13 +498,14 @@ def main():
                 # --- Game Screen Inputs --- #
                 if not victory:
                     if ev.type == pygame.MOUSEBUTTONDOWN:
-                        if ev.button == 1:
+                        if ev.button in (1, 3):
                             mouse_click = ev.pos
-                            if in_canvas_pixels(mouse_click):    
+                            if in_canvas_pixels(mouse_click):
+                                clockwise = ev.button == 1
                                 mat_coords = ((mouse_click[0] - grid_origin[0]) // images_side_length,
                                               (mouse_click[1] - grid_origin[1]) // images_side_length,)
                                 curr_node = game_matrix[mat_coords[1]][mat_coords[0]]
-                                edges, victory = curr_node.click(game_matrix)
+                                edges, victory = curr_node.click(game_matrix, clockwise)
                                 if loops_exist(game_matrix, edges):
                                     curr_back_color = COLORS["grid_back_loop"]
                                 else:
