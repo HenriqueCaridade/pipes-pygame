@@ -31,7 +31,7 @@ Uma vez que todos os "nodes" recetores estam a receber água da fonte central o 
 
 ### UI
 
-![UI](ui.png)
+![Starting Screen](file:///C:/Users/user2/Documents/Python%20Scripts/Projeto%20Pipes%20FP/Game_Screen.PNG)
 
 ### Pacotes
 
