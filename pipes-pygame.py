@@ -369,7 +369,7 @@ def main():
         return matrix
     
     # --- Helper Functions --- #
-    def input_is_valid(given_input: str, bounds: tuple[int]):
+    def input_is_valid(given_input: str, bounds: tuple[int]) -> str:
         if given_input:
             num = int(given_input)
             if bounds[0] <= num <= bounds[1]:
@@ -378,18 +378,18 @@ def main():
                 return "OutOfRange"
         return "Length"
     
-    def in_canvas_matrix(pos: tuple[int], mat: list[list]):
+    def in_canvas_matrix(pos: tuple[int], mat: list[list]) -> bool:
         mat_len = len(mat)
         return 0 <= pos[0] < mat_len and 0 <= pos[1] < mat_len
     
-    def in_canvas_pixels(ipt: tuple[int]):
+    def in_canvas_pixels(ipt: tuple[int]) -> bool:
         left_bounds = grid_origin[0]
         right_bounds = grid_origin[0] + grid_size
         up_bounds = grid_origin[1]
         down_bounds = grid_origin[1] + grid_size
         return left_bounds <= ipt[0] < right_bounds and up_bounds <= ipt[1] < down_bounds
     
-    def time_formatter(time: float):
+    def time_formatter(time: float) -> str:
         minutes = str(int(time / 60))
         seconds = str(int(time % 60))
         return minutes.zfill(2) + ":" + seconds.zfill(2)
@@ -533,7 +533,7 @@ def main():
     settings_language_text = languages[language]["language"]
     settings_timer_text = languages[language]["timer"]
     
-    settings_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
+    settings_font = pygame.font.Font(None, SCREEN_SIZE[1] // 8)
     settings_color = COLORS["white"]
     
     # Other Variables
@@ -694,7 +694,9 @@ def main():
                 timer_font_up = pygame.font.Font(None, timer_up_space * 3 // 2)
                 victory_timer_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
                 loading_size_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
-                settings_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
+                settings_font = pygame.font.Font(None, SCREEN_SIZE[1] // 8)
+                
+                loading_bar_rect = {"width": SCREEN_SIZE[0] // 4 * 3, "height": SCREEN_SIZE[1] // 20}
                 
                 if curr_screen == "game":
                     if is_timer_back:
