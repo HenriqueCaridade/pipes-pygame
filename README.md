@@ -44,7 +44,7 @@ Uma vez que todos os "nodes" recetores estam a receber água da fonte central o 
 
 1. Calcular uma tubulação possível que preencha a matrix toda n x n
 2. Desenhar a matrix do jogo
-3. ler o rato e rodar as peças de acordo
-4. verificar se jogador chegou ao fim do nível
+3. Ler o rato e rodar as peças de acordo
+4. Verificar se jogador chegou ao fim do nível
 
 - Atualizado a última vez em 15/12/2021
