@@ -467,6 +467,7 @@ def main():
     # --- Constants & Variables --- #
     screen = pygame.display.set_mode(SCREEN_SIZE, pygame.RESIZABLE, pygame.SRCALPHA)
     pygame.display.set_caption("Pygame Pipes")
+    pygame.display.set_icon(IMAGES["Four_Way_Source_Node"])
     
     # Starting Screen Variables
     TEXTBOX_SIZE = (SCREEN_SIZE[0] // 8, SCREEN_SIZE[1] // 8)
