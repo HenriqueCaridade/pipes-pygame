@@ -33,7 +33,7 @@ Uma vez que todos os "nodes" recetores estam a receber água da fonte central o 
 
 ![Starting Screen](UI/Starting_Screen.PNG)
 ![Game Screen](UI/Game_Screen.PNG)
-![Settings_Screen](UI/Setting_Screen.PNG)
+![Settings_Screen](UI/Settings_Screen.PNG)
 
 ### Pacotes
 
