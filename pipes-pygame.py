@@ -412,6 +412,7 @@ def main():
               "grid_back_loop": pygame.Color((200, 100, 100)),
               "grid_lines": pygame.Color((220, 220, 220)),
               "green": pygame.Color((0, 200, 0)),
+              "alt_victory": pygame.Color((20, 20, 20)),
               "loading": pygame.Color((200, 200, 200))}
     BACKGROUND_COLOR = COLORS["background"]
     IMAGES = get_images()
@@ -421,15 +422,15 @@ def main():
     image_color_themes = {"default": ((100,180,230), # Light Blue (Water)
                                       (60,60,150), # Dark blue (Center Node)
                                       (80,160,200)), # Receiver Node
-                          "red": ((200,20,20),
+                          "red": ((170,15,15),
                                   (100, 5, 5),
-                                  (200,80,80)),
-                          "green": ((20,200,20),
+                                  (170,60,60)),
+                          "green": ((15,170,15),
                                     (5, 90, 5),
-                                    (80,220,80)),
-                          "yellow": ((220,220,20),
-                                     (180,180,0),
-                                     (255,255,80)),
+                                    (70,190,70)),
+                          "yellow": ((200,200,20),
+                                     (160,160,0),
+                                     (240,240,70)),
                           "white": ((220,220,220),
                                     (180,180,180),
                                     (255,255,255)),
@@ -601,7 +602,10 @@ def main():
                                 error_text = ""
                                 
                                 images_side_length = grid_size // ipt
-                                difference = grid_size % ipt
+                                images_side_length -= images_side_length % 3
+                                aux = images_side_length % 3
+                                images_side_length -= aux
+                                difference = grid_size % ipt + aux * ipt
                                 grid_size -= difference
                                 grid_origin = (grid_origin[0] + difference // 2, grid_origin[1] + difference // 2)
                                 grid_back_rect_screen = pygame.Surface((grid_size, grid_size))
@@ -731,7 +735,9 @@ def main():
                         else:
                             grid_origin = ((SCREEN_SIZE[0] - h) // 2, timer_up_space)
                     images_side_length = grid_size // ipt
-                    difference = grid_size % ipt
+                    aux = images_side_length % 3
+                    images_side_length -= aux
+                    difference = grid_size % ipt + aux * ipt
                     grid_size -= difference
                     grid_origin = (grid_origin[0] + difference // 2, grid_origin[1] + difference // 2)
                     grid_back_rect_screen = pygame.Surface((grid_size, grid_size))
@@ -745,6 +751,8 @@ def main():
                 settings_icons_size = SCREEN_SIZE[1] // 6
                 flags_resized = resize_icons(settings_icons_size, FLAGS)
                 timer_icons_resized = resize_icons(settings_icons_size, TIMER_ICONS)
+                
+                
         
         # --- Display Screen --- #
         screen.fill(BACKGROUND_COLOR)
@@ -873,7 +881,7 @@ def main():
             timer_icon = timer_icons_resized[timer_setting]
             screen.blit(timer_icon, (r_cen - settings_icons_size // 2, SCREEN_SIZE[1] // options * 3 - settings_icons_size // 2))
             
-            # GridSetting
+            # Grid Setting
             settings_grid_surface = settings_font.render(settings_grid_text, antialias, settings_color)
             screen.blit(settings_grid_surface, (l_cen - settings_grid_surface.get_width() // 2,
                                                 SCREEN_SIZE[1] // options * 4 - settings_grid_surface.get_height() // 2))
