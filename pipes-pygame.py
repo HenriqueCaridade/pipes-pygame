@@ -284,9 +284,15 @@ def main():
         aux["portuguese"] = pygame.image.load("Flags\\Portuguese_Flag.png")
         return aux
     
-    def resize_flags(size: int, flags: dict):
+    # Timer Icons
+    def get_timer_icons() -> dict:
+        aux = {"behind": pygame.image.load("Timer Icons\\Behind_Timer.png")}
+        aux["top"] = pygame.image.load("Timer Icons\\Top_Timer.png")
+        return aux
+        
+    def resize_icons(size: int, icons: dict) -> dict:
         aux = {}
-        for i, item in flags.items():
+        for i, item in icons.items():
             aux[i] = pygame.transform.scale(item, (size, size))
         return aux
         
@@ -402,13 +408,12 @@ def main():
               "background": pygame.Color((64, 64, 64)),
               "error": pygame.Color((180, 30, 30)),
               "grid_back": pygame.Color((170, 170, 170)),
+              "grid_back_solid": pygame.Color((126,126,126)),
               "grid_back_loop": pygame.Color((200, 100, 100)),
               "grid_lines": pygame.Color((220, 220, 220)),
               "green": pygame.Color((0, 200, 0)),
               "loading": pygame.Color((200, 200, 200))}
     BACKGROUND_COLOR = COLORS["background"]
-    FLAGS = get_flags()
-    flags_resized = resize_flags(SCREEN_SIZE[1] // 10, FLAGS) 
     IMAGES = get_images()
     images_side_length = 360
     grid_size_BOUNDS = (4, 25)
@@ -416,14 +421,14 @@ def main():
     image_color_themes = {"default": ((100,180,230), # Light Blue (Water)
                                       (60,60,150), # Dark blue (Center Node)
                                       (80,160,200)), # Receiver Node
-                          "red": ((255,25,25),
+                          "red": ((200,20,20),
                                   (100, 5, 5),
-                                  (255,90,90)),
-                          "green": ((25,255,25),
-                                    (5, 100, 5),
-                                    (90,255,90)),
-                          "yellow": ((255,255,25),
-                                     (190,190,0),
+                                  (200,80,80)),
+                          "green": ((20,200,20),
+                                    (5, 90, 5),
+                                    (80,220,80)),
+                          "yellow": ((220,220,20),
+                                     (180,180,0),
                                      (255,255,80)),
                           "white": ((220,220,220),
                                     (180,180,180),
@@ -445,8 +450,7 @@ def main():
                "color": "Color[C]:",
                "language": "Language[L]:",
                "timer": "Timer[T]:",
-               "top": "Top",
-               "behind": "Behind",
+               "grid": "Grid[G]:",
                "settings": "Press S for Settings."}
     portuguese = {"OutOfRange": "[ERRO] O número que digitou está fora do intervalo.",
                   "Length":"[ERRO] Nenhum input foi dado.",
@@ -458,8 +462,7 @@ def main():
                   "color": "Cor[C]:",
                   "language": "Idioma[L]:",
                   "timer": "Cronómetro[T]:",
-                  "top": "Topo",
-                  "behind": "Atrás",
+                  "grid": "Grelha[G]:",
                   "settings": "Clique em S para as Configurações."}
     languages = {"english": english,
                  "portuguese": portuguese}
@@ -527,12 +530,21 @@ def main():
     loading_size_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
     
     grid_back_alpha = 150
+    is_grid_on = True
     antialias = True
     
     # Settings Screen Variables
+    FLAGS = get_flags()
+    TIMER_ICONS = get_timer_icons()
+    
+    settings_icons_size = SCREEN_SIZE[1] // 6
+    flags_resized = resize_icons(settings_icons_size, FLAGS)
+    timer_icons_resized = resize_icons(settings_icons_size, TIMER_ICONS)
+    
     settings_color_text = languages[language]["color"]
     settings_language_text = languages[language]["language"]
     settings_timer_text = languages[language]["timer"]
+    settings_grid_text = languages[language]["grid"]
     
     settings_font = pygame.font.Font(None, SCREEN_SIZE[1] // 8)
     settings_color = COLORS["white"]
@@ -667,12 +679,15 @@ def main():
                         settings_color_text = languages[language]["color"]
                         settings_language_text = languages[language]["language"]
                         settings_timer_text = languages[language]["timer"]
+                        settings_grid_text = languages[language]["grid"]
                     elif ev.key == pygame.K_c:
                         i = themes_map.index(curr_images_theme)
                         i = (i + 1) % len(themes_map)
                         aux = themes_map[i]
                         change_theme(curr_images_theme, aux, IMAGES)
                         curr_images_theme = aux
+                    elif ev.key == pygame.K_g:
+                        is_grid_on = not is_grid_on
             if ev.type == pygame.VIDEORESIZE:
                 SCREEN_SIZE = pygame.display.get_window_size()
                 TEXTBOX_SIZE = (SCREEN_SIZE[0] // 8, SCREEN_SIZE[1] // 8)
@@ -727,7 +742,9 @@ def main():
                         for i in _:
                             i.update_image()
                     
-                flags_resized = resize_flags(SCREEN_SIZE[1] // 10, FLAGS)
+                settings_icons_size = SCREEN_SIZE[1] // 6
+                flags_resized = resize_icons(settings_icons_size, FLAGS)
+                timer_icons_resized = resize_icons(settings_icons_size, TIMER_ICONS)
         
         # --- Display Screen --- #
         screen.fill(BACKGROUND_COLOR)
@@ -798,10 +815,11 @@ def main():
             screen.blit(grid_back_rect_screen, grid_origin)
             
             # Grid
-            for x in range(grid_origin[0], grid_origin[0] + grid_size + 1, images_side_length):
-                pygame.draw.line(screen, COLORS["grid_lines"], (x, grid_origin[1]), (x, grid_origin[1] + grid_size))
-            for y in range(grid_origin[1], grid_origin[1] + grid_size + 1, images_side_length):
-                pygame.draw.line(screen, COLORS["grid_lines"], (grid_origin[0], y), (grid_origin[0] + grid_size, y))
+            if is_grid_on:
+                for x in range(grid_origin[0], grid_origin[0] + grid_size + 1, images_side_length):
+                    pygame.draw.line(screen, COLORS["grid_lines"], (x, grid_origin[1]), (x, grid_origin[1] + grid_size))
+                for y in range(grid_origin[1], grid_origin[1] + grid_size + 1, images_side_length):
+                    pygame.draw.line(screen, COLORS["grid_lines"], (grid_origin[0], y), (grid_origin[0] + grid_size, y))
             
             # Display Game Matrix
             for row in game_matrix:
@@ -809,7 +827,7 @@ def main():
                     image = item.image
                     image = pygame.transform.rotate(image, - 90 * item.rot)
                     image_pos = (grid_origin[0] + item.pos[0] * images_side_length,
-                                 grid_origin[1] + item.pos[1] * images_side_length)
+                                  grid_origin[1] + item.pos[1] * images_side_length)
                     screen.blit(image, image_pos)
             
             # Victory Text
@@ -824,39 +842,52 @@ def main():
         elif curr_screen == "settings":
             # --- Settings Screen --- #
             
+            options = 5 # +1
             l_cen = SCREEN_SIZE[0] // 6 * 2
             r_cen = l_cen // 2 * 5
             
             # Color Setting
             color_surface = settings_font.render(settings_color_text, antialias, settings_color)
             screen.blit(color_surface, (l_cen - color_surface.get_width() // 2,
-                                        SCREEN_SIZE[1] // 4 - color_surface.get_height() // 2))
+                                        SCREEN_SIZE[1] // options - color_surface.get_height() // 2))
             
-            color_rect_size = SCREEN_SIZE[1] // 10
             pygame.draw.rect(screen, image_color_themes[curr_images_theme][0],
-                             pygame.Rect(r_cen - color_rect_size // 2, SCREEN_SIZE[1] // 4 - color_rect_size // 2,
-                                         color_rect_size, color_rect_size),
-                             border_radius = SCREEN_SIZE[1] // 100)
+                             pygame.Rect(r_cen - settings_icons_size // 2, SCREEN_SIZE[1] // options - settings_icons_size // 3,
+                                         settings_icons_size, settings_icons_size // 3 * 2),
+                             border_radius = SCREEN_SIZE[1] // 80)
             
             # Language Setting
             language_surface = settings_font.render(settings_language_text, antialias, settings_color)
             screen.blit(language_surface, (l_cen - language_surface.get_width() // 2,
-                                           (SCREEN_SIZE[1] - language_surface.get_height()) // 2))
+                                           SCREEN_SIZE[1] // options * 2 - language_surface.get_height() // 2))
             
             curr_flag = flags_resized[language]
-            flag_size = curr_flag.get_size()
-            screen.blit(curr_flag, (r_cen - flag_size[0] // 2, (SCREEN_SIZE[1] - flag_size[1]) // 2))
+            screen.blit(curr_flag, (r_cen - settings_icons_size // 2, SCREEN_SIZE[1] // options * 2 - settings_icons_size // 2))
             
             # Timer Setting
             settings_timer_surface = settings_font.render(settings_timer_text, antialias, settings_color)
             screen.blit(settings_timer_surface, (l_cen - settings_timer_surface.get_width() // 2,
-                                                 SCREEN_SIZE[1] // 4 * 3 - settings_timer_surface.get_height() // 2)) 
+                                                 SCREEN_SIZE[1] // options * 3 - settings_timer_surface.get_height() // 2)) 
             
             timer_setting = "behind" if is_timer_back else "top"
-            settings_timer_setting_surface = settings_font.render(languages[language][timer_setting], antialias, settings_color)
-            screen.blit(settings_timer_setting_surface, (r_cen - settings_timer_setting_surface.get_width() // 2,
-                                                        SCREEN_SIZE[1] // 4 * 3 - settings_timer_setting_surface.get_height() // 2))
+            timer_icon = timer_icons_resized[timer_setting]
+            screen.blit(timer_icon, (r_cen - settings_icons_size // 2, SCREEN_SIZE[1] // options * 3 - settings_icons_size // 2))
             
+            # GridSetting
+            settings_grid_surface = settings_font.render(settings_grid_text, antialias, settings_color)
+            screen.blit(settings_grid_surface, (l_cen - settings_grid_surface.get_width() // 2,
+                                                SCREEN_SIZE[1] // options * 4 - settings_grid_surface.get_height() // 2))
+            
+            grid_icon_pos = (r_cen - settings_icons_size // 2, SCREEN_SIZE[1] // options * 4 - settings_icons_size // 2)
+            pygame.draw.rect(screen, COLORS["grid_back_solid"], pygame.Rect(grid_icon_pos,(settings_icons_size, settings_icons_size)))
+            if is_grid_on:
+                grid_icon_end = (grid_icon_pos[0] + settings_icons_size, grid_icon_pos[1] + settings_icons_size)
+                grid_icon_step = settings_icons_size // 4
+                for x in range(grid_icon_pos[0], grid_icon_end[0] + 1, grid_icon_step):
+                    pygame.draw.line(screen, COLORS["grid_lines"], (x, grid_icon_pos[1]), (x, grid_icon_pos[1] + settings_icons_size))
+                for y in range(grid_icon_pos[1], grid_icon_end[1] + 1, grid_icon_step):
+                    pygame.draw.line(screen, COLORS["grid_lines"], (grid_icon_pos[0], y), (grid_icon_pos[0] + settings_icons_size, y))
+        
         # Center Check
         # pygame.draw.line(screen, (0, 0, 0), (SCREEN_SIZE[0] // 2, 0), (SCREEN_SIZE[0] // 2, SCREEN_SIZE[1]))
         # pygame.draw.line(screen, (0, 0, 0), (0, SCREEN_SIZE[1] // 2), (SCREEN_SIZE[0], SCREEN_SIZE[1] // 2))
