@@ -9,7 +9,7 @@ https://www.puzzle-pipes.com
 """
 
 import pygame
-import numpy as np
+from random import choice, randint
 from time import perf_counter
 from typing import List, Tuple
 from platform import system
@@ -175,13 +175,13 @@ class Node:
         for i, con in enumerate(water_connections):
             if con:
                 if i == 0:
-                    edges.append(f"{self.node_up.pos[0]}-{self.node_up.pos[1]}-{self.pos[0]}-{self.pos[1]}")
+                    edges.append(((self.node_up.pos[0], self.node_up.pos[1]), (self.pos[0], self.pos[1])))
                 elif i == 1:
-                    edges.append(f"{self.pos[0]}-{self.pos[1]}-{self.node_right.pos[0]}-{self.node_right.pos[1]}")
+                    edges.append(((self.pos[0], self.pos[1]),( self.node_right.pos[0], self.node_right.pos[1])))
                 elif i == 2:
-                    edges.append(f"{self.pos[0]}-{self.pos[1]}-{self.node_down.pos[0]}-{self.node_down.pos[1]}")
+                    edges.append(((self.pos[0], self.pos[1]), (self.node_down.pos[0], self.node_down.pos[1])))
                 elif i == 3:
-                    edges.append(f"{self.node_left.pos[0]}-{self.node_left.pos[1]}-{self.pos[0]}-{self.pos[1]}")
+                    edges.append(((self.node_left.pos[0], self.node_left.pos[1]), (self.pos[0], self.pos[1])))
         if self.type < 5:
             self.with_water = False
             if any(water_connections):
@@ -303,7 +303,7 @@ def resize_icons(size: int, icons: dict) -> dict:
 def scrabble_matrix(mat: Matrix):
     for _ in mat:
         for i in _:
-            i.rot = np.random.randint(4)
+            i.rot = randint(0, 4)
             i.update_rot()
 
 # Main Grid Generator Fuction in main()
@@ -365,16 +365,14 @@ def main():
         for _ in matrix:
             for i in _:
                 i.def_surrounding_nodes(matrix)
-        horizontal_edges = [f"{i}-{j}-{i}-{j + 1}" for i in range(side_length) for j in range(side_length - 1)]
-        vertical_edges = [f"{i}-{j}-{i + 1}-{j}" for i in range(side_length - 1) for j in range(side_length)]
+        horizontal_edges = [((i, j), (i, j + 1)) for i in range(side_length) for j in range(side_length - 1)]
+        vertical_edges = [((i, j), (i + 1, j)) for i in range(side_length - 1) for j in range(side_length)]
         edges = horizontal_edges + vertical_edges
         edges_total_len = len(edges)
         exited = False
         while loops_exist(matrix, images_resized):
             while everything_is_connected(matrix, images_resized):
-                edge_aux1 = np.random.choice(edges)
-                edge_aux = edge_aux1.split("-")
-                edge = ((int(edge_aux[0]), int(edge_aux[1])), (int(edge_aux[2]), int(edge_aux[3])))
+                edge = choice(edges)
                 pos1, pos2 = edge
                 direction = (pos1[0] - pos2[0], pos1[1] - pos2[1])
                 node1 = matrix[pos1[1]][pos1[0]]
@@ -385,7 +383,7 @@ def main():
                 elif direction == (-1, 0):
                     node1.right = False
                     node2.left = False
-                edges.remove(edge_aux1)
+                edges.remove(edge)
                 
                 # Loading Bar
                 curr_l = edges_total_len - len(edges)
@@ -427,7 +425,7 @@ def main():
     background_color = colors["background"]
     images = get_images()
     images_side_length = 360
-    grid_size_bounds = (4, 25)
+    grid_size_bounds = (4, 30)
     
     image_color_themes = {"default": ((100,180,230), # Light Blue (Water)
                                       (60,60,150), # Dark blue (Center Node)
