@@ -24,9 +24,9 @@
 
 ### Descrição
 
-*---É um jogo de puzzle em que o objetivo do jogo é conectar todos os "nodes" recetores á fonte central de água. 
-Os "nodes" recetores são conectados á fonte central por tubos que precisam de ser rodados para fazer as conecções
-Para rodar um tubo (ou um "node" recetor ou a fonte central) basta clicar no mesmo (rotação em sentido horário). 
+*---É um jogo de puzzle em que o objetivo do jogo é conectar todos os "nodes" recetores á fonte central de água (passando
+por todos os tubos). Os "nodes" recetores são conectados á fonte central por tubos que precisam de ser rodados para fazer
+as conecções. Para rodar um tubo (ou um "node" recetor ou a fonte central) basta clicar no mesmo (rotação em sentido horário). 
 Uma vez que todos os "nodes" recetores estam a receber água da fonte central o jogador ganha e o jogo acaba.---*
 
 ### UI
