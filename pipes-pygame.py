@@ -11,299 +11,316 @@ https://www.puzzle-pipes.com
 import pygame
 import numpy as np
 from time import perf_counter
+from typing import List, Tuple
+
+# --- Nodes Management --- #
+# Node Type:
+# "Receiving_Node / One_Way" -> 0
+# "Straight" -> 1
+# "Two_Way" -> 2
+# "Three_Way" -> 3
+# "Four_Way" -> 4
+#
+# Node Rotation:
+# 0º -> 0
+# 90º -> 1
+# 180º -> 2
+# 270º -> 3
+
+POS = ((0, -1), (1, 0), (0, 1), (-1, 0))
+NODE_ACCESS = ((), (2,), (1,), (1, 2), (1, 2, 3))
+INVERSE_NODE_ACCESS = (((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1)),
+                       ((1,0,1,0), (0,1,0,1)),
+                       ((1,1,0,0), (0,1,1,0), (0,0,1,1), (1,0,0,1)),
+                       ((1,1,1,0), (0,1,1,1), (1,0,1,1), (1,1,0,1)),
+                       ((1,1,1,1),))
+
+Pos = Tuple[int]
+Matrix = List[list]
+
+class BlankNode:
+    def __init__(self, pos: Pos):
+        self.pos = pos
+        self.rot = 0
+        self.type = 0
+        self.with_water = False
+        self.up = False
+        self.down = False
+        self.right = False
+        self.left = False
+
+# --- Helper Grid Fuctions --- #
+def clear_water(mat: Matrix, images_resized: dict):
+    for _ in mat:
+        for i in _:
+            i.with_water = False
+            i.update_image(images_resized)
+    aux = len(mat) // 2
+    mat[aux][aux].with_water = True
+    mat[aux][aux].update_image(images_resized)
+
+def clear_water_connections(mat: Matrix):
+    for _ in mat:
+        for i in _:
+            i.water_connections = []
+
+def clear_checks(mat: Matrix):
+    for _ in mat:
+        for i in _:
+            i.checked = False
+
+def everything_is_connected(mat: Matrix, images_resized: dict) -> bool:
+    check_connection(mat, images_resized)
+    for _ in mat:
+        for i in _:
+            if not i.with_water:
+                return False
+    return True
+
+def loops_exist(mat: Matrix, images_resized: dict) -> bool:
+    check_connection(mat, images_resized)
+    for _ in mat:
+        for i in _:
+            if len(list(filter(lambda x: x, i.water_connections))) > 1:
+                return True
+    return False
+
+def check_victory(mat: Matrix):
+    for _ in mat:
+        for i in _:
+            if not i.with_water:
+                return False
+    return True
+
+class Node:
+    def __init__(self, pos: Pos, rot: int, n_type: int, images_resized: dict):
+        self.pos = pos
+        self.rot = rot 
+        self.type = n_type
+        self.with_water = self.type >= 5
+        self.checked = False
+        self.image = image_getter(self.type, self.with_water, images_resized)
+        self.update_rot()
+    
+    def copy(self):
+        return Node(self.pos, self.rot, self.type)
+    
+    def update_rot(self):
+        aux1 = [True]
+        aux2 = list(NODE_ACCESS[self.type % 5])
+        for i in range(1, 4):
+            if aux2:
+                if i == aux2[0]:
+                    aux1.append(True)
+                    del aux2[0]
+                else:
+                    aux1.append(False)
+            else:
+                aux1.append(False)
+        aux1 = aux1[4 - self.rot:] + aux1[:4 - self.rot]
+        self.up, self.right, self.down, self.left = aux1
+        
+    def update_image(self, images_resized: dict):
+        self.image = image_getter(self.type, self.with_water, images_resized)
+    
+    def click(self, mat: Matrix, clockwise: bool, images_resized: dict):
+        if clockwise:
+            self.up, self.right, self.down, self.left = self.left, self.up, self.right, self.down
+            self.rot = (self.rot + 1) % 4
+        else:
+            self.up, self.right, self.down, self.left = self.right, self.down, self.left, self.up
+            self.rot = (self.rot - 1) % 4
+        edges = check_connection(mat, images_resized)
+        return edges, check_victory(mat)
+        
+    def def_surrounding_nodes(self, mat: Matrix):
+        aux = []
+        for i in POS:
+            pos = (self.pos[0] + i[0], self.pos[1] + i[1])
+            if in_canvas_matrix(pos, mat):
+                aux.append(mat[pos[1]][pos[0]])
+            else:
+                aux.append(BlankNode(pos))
+        self.node_up, self.node_right, self.node_down, self.node_left = aux
+    
+    def def_type_rot_image(self, images_resized):
+        aux = (int(self.up), int(self.right), int(self.down), int(self.left))
+        for tp, _ in enumerate(INVERSE_NODE_ACCESS):
+            for rot, i in enumerate(_):
+                if aux == i: 
+                    if self.type < 5:
+                        self.type = tp
+                    else:
+                        self.type = tp + 5
+                    self.rot = rot
+                    self.update_image(images_resized)
+                    return
+    
+    def check_connection_helper(self, mat: Matrix, images_resized) -> list:
+        self.checked = True
+        # Conections
+        connections = [self.up and self.node_up.down,
+                       self.right and self.node_right.left,
+                       self.down and self.node_down.up,
+                       self.left and self.node_left.right]
+        water_connections = [connections[0] and self.node_up.with_water,
+                             connections[1] and self.node_right.with_water,
+                             connections[2] and self.node_down.with_water,
+                             connections[3] and self.node_left.with_water]
+        self.water_connections = water_connections
+        edges = []
+        for i, con in enumerate(water_connections):
+            if con:
+                if i == 0:
+                    edges.append(f"{self.node_up.pos[0]}-{self.node_up.pos[1]}-{self.pos[0]}-{self.pos[1]}")
+                elif i == 1:
+                    edges.append(f"{self.pos[0]}-{self.pos[1]}-{self.node_right.pos[0]}-{self.node_right.pos[1]}")
+                elif i == 2:
+                    edges.append(f"{self.pos[0]}-{self.pos[1]}-{self.node_down.pos[0]}-{self.node_down.pos[1]}")
+                elif i == 3:
+                    edges.append(f"{self.node_left.pos[0]}-{self.node_left.pos[1]}-{self.pos[0]}-{self.pos[1]}")
+        if self.type < 5:
+            self.with_water = False
+            if any(water_connections):
+                self.with_water = True
+        if self.with_water:
+            if connections[0] and not self.node_up.checked:
+                edges.extend(self.node_up.check_connection_helper(mat, images_resized))
+            if connections[1] and not self.node_right.checked:
+                edges.extend(self.node_right.check_connection_helper(mat, images_resized))
+            if connections[2] and not self.node_down.checked:
+                edges.extend(self.node_down.check_connection_helper(mat, images_resized))
+            if connections[3] and not self.node_left.checked:
+                edges.extend(self.node_left.check_connection_helper(mat, images_resized))
+        self.image = image_getter(self.type, self.with_water, images_resized)
+        return edges
+            
+def check_connection(mat: Matrix, images_resized: dict) -> list:
+    clear_water(mat, images_resized)
+    clear_water_connections(mat)
+    x = len(mat) // 2
+    edges = mat[x][x].check_connection_helper(mat, images_resized)
+    clear_checks(mat)
+    return edges
+
+# --- Image Management Functions --- #
+
+# Pipes Images
+def get_images() -> dict:
+    start = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
+    end = ["Without_Water", "With_Water"]
+    aux_dict = {}
+    for st in start:
+        for ed in end:
+            aux_dict[st] = aux_dict.get(st, ()) + (pygame.image.load("Images\\" + st + "_" + ed + ".png"),)
+    start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
+    for st in start:
+        aux_dict[st + "_Source_Node"] = pygame.image.load("Images\\" + st + "_Source_Node.png")
+    return aux_dict
+
+def image_getter(n: int, water: bool, images: dict):
+    # 15 images
+    # 10 pieces
+    # 5 variants
+    n %= 10
+    
+    start1 = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
+    start2 = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
+    if n < 5:
+        image_i = n
+        image_j = int(water)
+        image = images[start1[image_i]][image_j]
+    else:
+        image_i = n - 5
+        image = images[start2[image_i] + "_Source_Node"]
+    return image
+
+def resize_images(side: int, images: dict):
+    image_size = (side, side)
+    start = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
+    # end = ["Without_Water", "With_Water"]
+    aux_dict = {}
+    for st in start:
+        aux_dict[st] = (pygame.transform.scale(images[st][0], image_size),
+                        pygame.transform.scale(images[st][1], image_size))
+    start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
+    for st in start:
+        aux_dict[st + "_Source_Node"] = pygame.transform.scale(images[st + "_Source_Node"], image_size)
+    return aux_dict
+
+# Colors
+def change_theme(curr: str, new: str, images: dict, image_color_themes: dict):
+    translation = (image_color_themes[curr], image_color_themes[new])
+    start = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
+    # end = ["Without_Water", "With_Water"]
+    for st in start:
+        for i in range(2):
+            for j in range(3):
+                pygame.PixelArray(images[st][i]).replace(translation[0][j], translation[1][j])
+    start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
+    for st in start:
+        for j in range(3):
+            pygame.PixelArray(images[st + "_Source_Node"]).replace(translation[0][j], translation[1][j])
+
+# Flags
+def get_flags() -> dict:
+    aux = {"english": pygame.image.load("Flags\\American_Flag.png")}
+    aux["portuguese"] = pygame.image.load("Flags\\Portuguese_Flag.png")
+    return aux
+
+# Timer Icons
+def get_timer_icons() -> dict:
+    aux = {"behind": pygame.image.load("Timer Icons\\Behind_Timer.png")}
+    aux["top"] = pygame.image.load("Timer Icons\\Top_Timer.png")
+    return aux
+    
+def resize_icons(size: int, icons: dict) -> dict:
+    aux = {}
+    for i, item in icons.items():
+        aux[i] = pygame.transform.scale(item, (size, size))
+    return aux
+    
+# --- Grid Functions --- #
+def scrabble_matrix(mat: Matrix):
+    for _ in mat:
+        for i in _:
+            i.rot = np.random.randint(4)
+            i.update_rot()
+
+# Main Grid Generator Fuction in main()
+
+# --- Helper Functions --- #
+def input_is_valid(given_input: str, bounds: Tuple[int]) -> str:
+    if given_input:
+        num = int(given_input)
+        if bounds[0] <= num <= bounds[1]:
+            return "Clear"
+        else:
+            return "OutOfRange"
+    return "Length"
+
+def in_canvas_matrix(pos: Pos, mat: Matrix) -> bool:
+    mat_len = len(mat)
+    return 0 <= pos[0] < mat_len and 0 <= pos[1] < mat_len
+
+def in_canvas_pixels(ipt: Tuple[int], grid_origin: Tuple[int], grid_size: int) -> bool:
+    left_bounds = grid_origin[0]
+    right_bounds = grid_origin[0] + grid_size
+    up_bounds = grid_origin[1]
+    down_bounds = grid_origin[1] + grid_size
+    return left_bounds <= ipt[0] < right_bounds and up_bounds <= ipt[1] < down_bounds
+
+def time_formatter(time: float) -> str:
+    minutes = str(int(time / 60))
+    seconds = str(int(time % 60))
+    return minutes.zfill(2) + ":" + seconds.zfill(2)
+
 
 def main():
     pygame.init()
     
-    # --- Nodes Management --- #
-    # Node Type:
-    # "Receiving_Node / One_Way" -> 0
-    # "Straight" -> 1
-    # "Two_Way" -> 2
-    # "Three_Way" -> 3
-    # "Four_Way" -> 4
-    #
-    # Node Rotation:
-    # 0º -> 0
-    # 90º -> 1
-    # 180º -> 2
-    # 270º -> 3
-    
-    POS = ((0, -1), (1, 0), (0, 1), (-1, 0))
-    NODE_ACCESS = ((), (2,), (1,), (1, 2), (1, 2, 3))
-    INVERSE_NODE_ACCESS = (((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1)),
-                           ((1,0,1,0), (0,1,0,1)),
-                           ((1,1,0,0), (0,1,1,0), (0,0,1,1), (1,0,0,1)),
-                           ((1,1,1,0), (0,1,1,1), (1,0,1,1), (1,1,0,1)),
-                           ((1,1,1,1),))
-    
-    class BlankNode:
-        def __init__(self, pos: tuple[int]):
-            self.pos = pos
-            self.rot = 0
-            self.type = 0
-            self.with_water = False
-            self.up = False
-            self.down = False
-            self.right = False
-            self.left = False
-    
-    # --- Helper Grid Fuctions --- #
-    def clear_water(mat: list[list]):
-        for _ in mat:
-            for i in _:
-                i.with_water = False
-                i.update_image()
-        aux = len(mat) // 2
-        mat[aux][aux].with_water = True
-        mat[aux][aux].update_image()
-    
-    def clear_checks(mat: list[list]):
-        for _ in mat:
-            for i in _:
-                i.checked = False
-    
-    def everything_is_connected(mat: list[list]) -> bool:
-        check_connection(mat)
-        for _ in mat:
-            for i in _:
-                if not i.with_water:
-                    return False
-        return True
-    
-    def how_many_are_connected(mat: list[list]) -> int:
-        check_connection(mat)
-        aux = 0
-        for _ in mat:
-            for i in _:
-                if i.with_water:
-                    aux += 1
-        return aux
-    
-    def loops_exist(mat: list[list], edges: list) -> bool:
-        before = how_many_are_connected(mat)
-        for i in edges:
-            edge_aux = i.split("-")
-            edge = ((int(edge_aux[0]), int(edge_aux[1])), (int(edge_aux[2]), int(edge_aux[3])))
-            pos1, pos2 = edge
-            node1 = mat[pos1[1]][pos1[0]]
-            node2 = mat[pos2[1]][pos2[0]]
-            direction = (pos1[0] - pos2[0], pos1[1] - pos2[1])
-            prev_nodes = (node1.down, node1.right, node2.up, node2.left)
-            if direction == (0, -1):
-                node1.down = False
-                node2.up = False
-            elif direction == (-1, 0):
-                node1.right = False
-                node2.left = False
-            if before == how_many_are_connected(mat):
-                node1.down, node1.right, node2.up, node2.left = prev_nodes
-                return True
-            node1.down, node1.right, node2.up, node2.left = prev_nodes
-        check_connection(mat)
-        return False
-    
-    def check_victory(mat: list[list]):
-        for _ in mat:
-            for i in _:
-                if not i.with_water:
-                    return False
-        return True
-    
-    class Node:
-        def __init__(self, pos: tuple[int], rot: int, n_type: int):
-            self.pos = pos
-            self.rot = rot 
-            self.type = n_type
-            self.with_water = self.type >= 5
-            self.checked = False
-            self.image = image_getter(self.type, self.with_water, images_resized)
-            self.update_rot()
-        
-        def copy(self):
-            return Node(self.pos, self.rot, self.type)
-        
-        def update_rot(self):
-            aux1 = [True]
-            aux2 = list(NODE_ACCESS[self.type % 5])
-            for i in range(1, 4):
-                if aux2:
-                    if i == aux2[0]:
-                        aux1.append(True)
-                        del aux2[0]
-                    else:
-                        aux1.append(False)
-                else:
-                    aux1.append(False)
-            aux1 = aux1[4 - self.rot:] + aux1[:4 - self.rot]
-            self.up, self.right, self.down, self.left = aux1
-            
-        def update_image(self):
-            self.image = image_getter(self.type, self.with_water, images_resized)
-        
-        def click(self, mat: list[list], clockwise: bool):
-            if clockwise:
-                self.up, self.right, self.down, self.left = self.left, self.up, self.right, self.down
-                self.rot = (self.rot + 1) % 4
-            else:
-                self.up, self.right, self.down, self.left = self.right, self.down, self.left, self.up
-                self.rot = (self.rot - 1) % 4
-            edges = check_connection(mat)
-            return edges, check_victory(mat)
-            
-        def def_surrounding_nodes(self, mat: list[list]):
-            aux = []
-            for i in POS:
-                pos = (self.pos[0] + i[0], self.pos[1] + i[1])
-                if in_canvas_matrix(pos, mat):
-                    aux.append(mat[pos[1]][pos[0]])
-                else:
-                    aux.append(BlankNode(pos))
-            self.node_up, self.node_right, self.node_down, self.node_left = aux
-        
-        def def_type_rot_image(self):
-            aux = (int(self.up), int(self.right), int(self.down), int(self.left))
-            for tp, _ in enumerate(INVERSE_NODE_ACCESS):
-                for rot, i in enumerate(_):
-                    if aux == i: 
-                        if self.type < 5:
-                            self.type = tp
-                        else:
-                            self.type = tp + 5
-                        self.rot = rot
-                        self.update_image()
-                        return
-        
-        def check_connection_helper(self, mat: list[list]) -> list:
-            self.checked = True
-            # Conections
-            connections = [self.up and self.node_up.down,
-                           self.right and self.node_right.left,
-                           self.down and self.node_down.up,
-                           self.left and self.node_left.right]
-            water_connections = [connections[0] and self.node_up.with_water,
-                                 connections[1] and self.node_right.with_water,
-                                 connections[2] and self.node_down.with_water,
-                                 connections[3] and self.node_left.with_water]
-            edges = []
-            for i, con in enumerate(water_connections):
-                if con:
-                    if i == 0:
-                        edges.append(f"{self.node_up.pos[0]}-{self.node_up.pos[1]}-{self.pos[0]}-{self.pos[1]}")
-                    elif i == 1:
-                        edges.append(f"{self.pos[0]}-{self.pos[1]}-{self.node_right.pos[0]}-{self.node_right.pos[1]}")
-                    elif i == 2:
-                        edges.append(f"{self.pos[0]}-{self.pos[1]}-{self.node_down.pos[0]}-{self.node_down.pos[1]}")
-                    elif i == 3:
-                        edges.append(f"{self.node_left.pos[0]}-{self.node_left.pos[1]}-{self.pos[0]}-{self.pos[1]}")
-            if self.type < 5:
-                self.with_water = False
-                if any(water_connections):
-                    self.with_water = True
-            if self.with_water:
-                if connections[0] and not self.node_up.checked:
-                    edges.extend(self.node_up.check_connection_helper(mat))
-                if connections[1] and not self.node_right.checked:
-                    edges.extend(self.node_right.check_connection_helper(mat))
-                if connections[2] and not self.node_down.checked:
-                    edges.extend(self.node_down.check_connection_helper(mat))
-                if connections[3] and not self.node_left.checked:
-                    edges.extend(self.node_left.check_connection_helper(mat))
-            self.image = image_getter(self.type, self.with_water, images_resized)
-            return edges
-                
-    def check_connection(mat: list[list]) -> list:
-        clear_water(mat)
-        x = len(mat) // 2
-        edges = mat[x][x].check_connection_helper(mat)
-        clear_checks(mat)
-        return edges
-    
-    # --- Image Management Functions --- #
-    
-    # Pipes Images
-    def get_images() -> dict:
-        start = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
-        end = ["Without_Water", "With_Water"]
-        aux_dict = {}
-        for st in start:
-            for ed in end:
-                aux_dict[st] = aux_dict.get(st, ()) + (pygame.image.load("Images\\" + st + "_" + ed + ".png"),)
-        start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
-        for st in start:
-            aux_dict[st + "_Source_Node"] = pygame.image.load("Images\\" + st + "_Source_Node.png")
-        return aux_dict
-    
-    def image_getter(n: int, water: bool, images: dict):
-        # 15 images
-        # 10 pieces
-        # 5 variants
-        n %= 10
-        
-        start1 = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
-        start2 = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
-        if n < 5:
-            image_i = n
-            image_j = int(water)
-            image = images[start1[image_i]][image_j]
-        else:
-            image_i = n - 5
-            image = images[start2[image_i] + "_Source_Node"]
-        return image
-    
-    def resize_images(side: int, images: dict):
-        image_size = (side, side)
-        start = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
-        # end = ["Without_Water", "With_Water"]
-        aux_dict = {}
-        for st in start:
-            aux_dict[st] = (pygame.transform.scale(images[st][0], image_size),
-                            pygame.transform.scale(images[st][1], image_size))
-        start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
-        for st in start:
-            aux_dict[st + "_Source_Node"] = pygame.transform.scale(images[st + "_Source_Node"], image_size)
-        return aux_dict
-    
-    # Colors
-    def change_theme(curr: str, new: str, images: dict):
-        translation = (image_color_themes[curr], image_color_themes[new])
-        start = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
-        # end = ["Without_Water", "With_Water"]
-        for st in start:
-            for i in range(2):
-                for j in range(3):
-                    pygame.PixelArray(images[st][i]).replace(translation[0][j], translation[1][j])
-        start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
-        for st in start:
-            for j in range(3):
-                pygame.PixelArray(images[st + "_Source_Node"]).replace(translation[0][j], translation[1][j])
-    
-    # Flags
-    def get_flags() -> dict:
-        aux = {"english": pygame.image.load("Flags\\American_Flag.png")}
-        aux["portuguese"] = pygame.image.load("Flags\\Portuguese_Flag.png")
-        return aux
-    
-    # Timer Icons
-    def get_timer_icons() -> dict:
-        aux = {"behind": pygame.image.load("Timer Icons\\Behind_Timer.png")}
-        aux["top"] = pygame.image.load("Timer Icons\\Top_Timer.png")
-        return aux
-        
-    def resize_icons(size: int, icons: dict) -> dict:
-        aux = {}
-        for i, item in icons.items():
-            aux[i] = pygame.transform.scale(item, (size, size))
-        return aux
-        
-    # --- Grid Functions --- #
-    def scrabble_matrix(mat: list[list]):
-        for _ in mat:
-            for i in _:
-                i.rot = np.random.randint(4)
-                i.update_rot()
-    
-    def get_tubulation(side_length: int) -> list[list]:
+    # --- Main Grid Generator Function --- #
+    def get_tubulation(side_length: int) -> Matrix:
         center_node_pos = (side_length // 2, side_length // 2)
         matrix = []
         for row in range(side_length):
@@ -322,9 +339,9 @@ def main():
                         rot = 2
                     elif row == side_length - 1 and 0 < col < side_length:
                         rot = 3
-                    aux.append(Node((col, row), rot, tp))
+                    aux.append(Node((col, row), rot, tp, images_resized))
                 else: 
-                    aux.append(Node(center_node_pos, 0, 9))
+                    aux.append(Node(center_node_pos, 0, 9, images_resized))
             matrix.append(aux)
         for _ in matrix:
             for i in _:
@@ -334,8 +351,8 @@ def main():
         edges = horizontal_edges + vertical_edges
         edges_total_len = len(edges)
         exited = False
-        while loops_exist(matrix, edges):
-            while everything_is_connected(matrix):
+        while loops_exist(matrix, images_resized):
+            while everything_is_connected(matrix, images_resized):
                 edge_aux1 = np.random.choice(edges)
                 edge_aux = edge_aux1.split("-")
                 edge = ((int(edge_aux[0]), int(edge_aux[1])), (int(edge_aux[2]), int(edge_aux[3])))
@@ -370,35 +387,9 @@ def main():
                     node2.left = True
         for _ in matrix:
             for i in _:
-                i.def_type_rot_image()
+                i.def_type_rot_image(images_resized)
         
         return matrix
-    
-    # --- Helper Functions --- #
-    def input_is_valid(given_input: str, bounds: tuple[int]) -> str:
-        if given_input:
-            num = int(given_input)
-            if bounds[0] <= num <= bounds[1]:
-                return "Clear"
-            else:
-                return "OutOfRange"
-        return "Length"
-    
-    def in_canvas_matrix(pos: tuple[int], mat: list[list]) -> bool:
-        mat_len = len(mat)
-        return 0 <= pos[0] < mat_len and 0 <= pos[1] < mat_len
-    
-    def in_canvas_pixels(ipt: tuple[int]) -> bool:
-        left_bounds = grid_origin[0]
-        right_bounds = grid_origin[0] + grid_size
-        up_bounds = grid_origin[1]
-        down_bounds = grid_origin[1] + grid_size
-        return left_bounds <= ipt[0] < right_bounds and up_bounds <= ipt[1] < down_bounds
-    
-    def time_formatter(time: float) -> str:
-        minutes = str(int(time / 60))
-        seconds = str(int(time % 60))
-        return minutes.zfill(2) + ":" + seconds.zfill(2)
     
     # --- Screen Size, Colors and Grid Bounds --- #
     SCREEN_SIZE = (800, 600) # Scalable
@@ -602,7 +593,6 @@ def main():
                                 error_text = ""
                                 
                                 images_side_length = grid_size // ipt
-                                images_side_length -= images_side_length % 3
                                 aux = images_side_length % 3
                                 images_side_length -= aux
                                 difference = grid_size % ipt + aux * ipt
@@ -613,6 +603,7 @@ def main():
                                 curr_back_color = COLORS["grid_back"]
                                 
                                 images_resized = resize_images(images_side_length, IMAGES)
+                                
                                 # --- Loading Screen --- #
                                 screen.fill(BACKGROUND_COLOR)
                                 
@@ -627,10 +618,12 @@ def main():
                                                               (SCREEN_SIZE[1] - loading_surface.get_height()) // 8 * 3))
                                 pygame.display.flip()
                                 
+                                loading_start_time = perf_counter()
                                 game_matrix = get_tubulation(ipt)
+                                print(f"Loading Time ({ipt}):", time_formatter(perf_counter() - loading_start_time))
                                 
                                 scrabble_matrix(game_matrix)
-                                check_connection(game_matrix)
+                                check_connection(game_matrix, images_resized)
                                 start_time = perf_counter()
                             else:
                                 error_text = languages[language][input_check]
@@ -645,13 +638,13 @@ def main():
                     if ev.type == pygame.MOUSEBUTTONDOWN:
                         if ev.button in (1, 3):
                             mouse_click = ev.pos
-                            if in_canvas_pixels(mouse_click):
+                            if in_canvas_pixels(mouse_click, grid_origin, grid_size):
                                 clockwise = ev.button == 1
                                 mat_coords = ((mouse_click[0] - grid_origin[0]) // images_side_length,
                                               (mouse_click[1] - grid_origin[1]) // images_side_length,)
                                 curr_node = game_matrix[mat_coords[1]][mat_coords[0]]
-                                edges, victory = curr_node.click(game_matrix, clockwise)
-                                if loops_exist(game_matrix, edges):
+                                edges, victory = curr_node.click(game_matrix, clockwise, images_resized)
+                                if loops_exist(game_matrix, images_resized):
                                     curr_back_color = COLORS["grid_back_loop"]
                                 else:
                                     curr_back_color = COLORS["grid_back"]
@@ -659,7 +652,7 @@ def main():
                                     victory_text = languages[language]["victory"]
                                     victory_timer_text = time_formatter(perf_counter() - start_time)
                 if ev.type == pygame.KEYDOWN :
-                    if ev.key in (pygame.K_RETURN, pygame.K_ESCAPE):
+                    if (ev.key == pygame.K_RETURN and victory) or ev.key == pygame.K_ESCAPE:
                         curr_screen = "starting"
                         victory = False
                         victory_text = ""
@@ -688,7 +681,7 @@ def main():
                         i = themes_map.index(curr_images_theme)
                         i = (i + 1) % len(themes_map)
                         aux = themes_map[i]
-                        change_theme(curr_images_theme, aux, IMAGES)
+                        change_theme(curr_images_theme, aux, IMAGES, image_color_themes)
                         curr_images_theme = aux
                     elif ev.key == pygame.K_g:
                         is_grid_on = not is_grid_on
@@ -746,7 +739,7 @@ def main():
                     images_resized = resize_images(images_side_length, IMAGES)
                     for _ in game_matrix:
                         for i in _:
-                            i.update_image()
+                            i.update_image(images_resized)
                     
                 settings_icons_size = SCREEN_SIZE[1] // 6
                 flags_resized = resize_icons(settings_icons_size, FLAGS)
