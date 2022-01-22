@@ -159,7 +159,7 @@ class Node:
                     self.update_image(images_resized)
                     return
     
-    def check_connection_helper(self, mat: Matrix, images_resized) -> list:
+    def check_connection_helper(self, mat: Matrix, images_resized: dict) -> list:
         self.checked = True
         # Conections
         connections = [self.up and self.node_up.down,
@@ -177,7 +177,7 @@ class Node:
                 if i == 0:
                     edges.append(((self.node_up.pos[0], self.node_up.pos[1]), (self.pos[0], self.pos[1])))
                 elif i == 1:
-                    edges.append(((self.pos[0], self.pos[1]),( self.node_right.pos[0], self.node_right.pos[1])))
+                    edges.append(((self.pos[0], self.pos[1]), (self.node_right.pos[0], self.node_right.pos[1])))
                 elif i == 2:
                     edges.append(((self.pos[0], self.pos[1]), (self.node_down.pos[0], self.node_down.pos[1])))
                 elif i == 3:
