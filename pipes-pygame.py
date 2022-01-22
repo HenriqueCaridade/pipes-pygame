@@ -12,6 +12,7 @@ import pygame
 import numpy as np
 from time import perf_counter
 from typing import List, Tuple
+from platform import system
 
 # --- Nodes Management --- #
 # Node Type:
@@ -37,6 +38,8 @@ INVERSE_NODE_ACCESS = (((1,0,0,0), (0,1,0,0), (0,0,1,0), (0,0,0,1)),
 
 Pos = Tuple[int]
 Matrix = List[list]
+
+SYSTEM = system()
 
 class BlankNode:
     def __init__(self, pos: Pos):
@@ -210,12 +213,20 @@ def get_images() -> dict:
     start = ["Receiver_Node", "Straight_Tube", "Two_Way_Tube", "Three_Way_Tube", "Four_Way_Tube"]
     end = ["Without_Water", "With_Water"]
     aux_dict = {}
-    for st in start:
-        for ed in end:
-            aux_dict[st] = aux_dict.get(st, ()) + (pygame.image.load("Images\\" + st + "_" + ed + ".png"),)
-    start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
-    for st in start:
-        aux_dict[st + "_Source_Node"] = pygame.image.load("Images\\" + st + "_Source_Node.png")
+    if SYSTEM == "Windows":
+        for st in start:
+            for ed in end:
+                aux_dict[st] = aux_dict.get(st, ()) + (pygame.image.load("Images\\" + st + "_" + ed + ".png"),)
+        start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
+        for st in start:
+            aux_dict[st + "_Source_Node"] = pygame.image.load("Images\\" + st + "_Source_Node.png")
+    elif SYSTEM in ("Linux", "Darwin"):
+        for st in start:
+            for ed in end:
+                aux_dict[st] = aux_dict.get(st, ()) + (pygame.image.load("Images/" + st + "_" + ed + ".png"),)
+        start = ["One_Way", "Straight", "Two_Way", "Three_Way", "Four_Way"]
+        for st in start:
+            aux_dict[st + "_Source_Node"] = pygame.image.load("Images/" + st + "_Source_Node.png")
     return aux_dict
 
 def image_getter(n: int, water: bool, images: dict):
@@ -264,14 +275,22 @@ def change_theme(curr: str, new: str, images: dict, image_color_themes: dict):
 
 # Flags
 def get_flags() -> dict:
-    aux = {"english": pygame.image.load("Flags\\American_Flag.png")}
-    aux["portuguese"] = pygame.image.load("Flags\\Portuguese_Flag.png")
+    if SYSTEM == "Windows":
+        aux = {"english": pygame.image.load("Flags\\American_Flag.png")}
+        aux["portuguese"] = pygame.image.load("Flags\\Portuguese_Flag.png")
+    elif SYSTEM in ("Linux", "Darwin"):
+        aux = {"english": pygame.image.load("Flags/American_Flag.png")}
+        aux["portuguese"] = pygame.image.load("Flags/Portuguese_Flag.png")
     return aux
 
 # Timer Icons
 def get_timer_icons() -> dict:
-    aux = {"behind": pygame.image.load("Timer Icons\\Behind_Timer.png")}
-    aux["top"] = pygame.image.load("Timer Icons\\Top_Timer.png")
+    if SYSTEM == "Windows":
+        aux = {"behind": pygame.image.load("Timer Icons\\Behind_Timer.png")}
+        aux["top"] = pygame.image.load("Timer Icons\\Top_Timer.png")
+    elif SYSTEM in ("Linux", "Darwin"):
+        aux = {"behind": pygame.image.load("Timer Icons/Behind_Timer.png")}
+        aux["top"] = pygame.image.load("Timer Icons/Top_Timer.png")
     return aux
     
 def resize_icons(size: int, icons: dict) -> dict:
@@ -393,7 +412,7 @@ def main():
     
     # --- Screen Size, Colors and Grid Bounds --- #
     SCREEN_SIZE = (800, 600) # Scalable
-    COLORS = {"passive": pygame.Color((102, 102, 102)),
+    colors = {"passive": pygame.Color((102, 102, 102)),
               "active": pygame.Color((100,180,230)),
               "white": pygame.Color((255, 255, 255)),
               "background": pygame.Color((64, 64, 64)),
@@ -405,10 +424,10 @@ def main():
               "green": pygame.Color((0, 200, 0)),
               "alt_victory": pygame.Color((20, 20, 20)),
               "loading": pygame.Color((200, 200, 200))}
-    BACKGROUND_COLOR = COLORS["background"]
-    IMAGES = get_images()
+    background_color = colors["background"]
+    images = get_images()
     images_side_length = 360
-    grid_size_BOUNDS = (4, 25)
+    grid_size_bounds = (4, 25)
     
     image_color_themes = {"default": ((100,180,230), # Light Blue (Water)
                                       (60,60,150), # Dark blue (Center Node)
@@ -434,7 +453,7 @@ def main():
     language = "english"
     english = {"OutOfRange": "[ERROR] The number you typed is out of range.",
                "Length":"[ERROR] You gave no input.",
-               "info":f"Size must be between {grid_size_BOUNDS[0]} and {grid_size_BOUNDS[1]}.",
+               "info":f"Size must be between {grid_size_bounds[0]} and {grid_size_bounds[1]}.",
                "credits": "Made by Henrique Caridade",
                "loading":"Loading...",
                "victory":"VICTORY",
@@ -446,7 +465,7 @@ def main():
                "settings": "Press S for Settings."}
     portuguese = {"OutOfRange": "[ERRO] O número que digitou está fora do intervalo.",
                   "Length":"[ERRO] Nenhum input foi dado.",
-                  "info":f"Tamanho deverá estar entre {grid_size_BOUNDS[0]} e {grid_size_BOUNDS[1]}.",
+                  "info":f"Tamanho deverá estar entre {grid_size_bounds[0]} e {grid_size_bounds[1]}.",
                   "credits": "Feito por Henrique Caridade",
                   "loading":"Carregando...",
                   "victory":"VITÓRIA",
@@ -462,48 +481,48 @@ def main():
     # --- Constants & Variables --- #
     screen = pygame.display.set_mode(SCREEN_SIZE, pygame.RESIZABLE, pygame.SRCALPHA)
     pygame.display.set_caption("Pygame Pipes")
-    pygame.display.set_icon(IMAGES["Four_Way_Source_Node"])
+    pygame.display.set_icon(images["Four_Way_Source_Node"])
     
     # Starting Screen Variables
-    TEXTBOX_SIZE = (SCREEN_SIZE[0] // 8, SCREEN_SIZE[1] // 8)
-    TEXTBOX_POS = (SCREEN_SIZE[0] // 2 - TEXTBOX_SIZE[0] // 2, SCREEN_SIZE[1] // 2)
-    TEXTBOX_PADDING = TEXTBOX_SIZE[1] // 5
-    textbox_rect = pygame.Rect(TEXTBOX_POS, TEXTBOX_SIZE)
-    textbox_color = COLORS["passive"]
+    textbox_size = (SCREEN_SIZE[0] // 8, SCREEN_SIZE[1] // 8)
+    textbox_pos = (SCREEN_SIZE[0] // 2 - textbox_size[0] // 2, SCREEN_SIZE[1] // 2)
+    textbox_padding = textbox_size[1] // 5
+    textbox_rect = pygame.Rect(textbox_pos, textbox_size)
+    textbox_color = colors["passive"]
     textbox_text = ""
-    textbox_text_color = COLORS["white"]
-    textbox_font = pygame.font.Font(None, TEXTBOX_SIZE[1])
+    textbox_text_color = colors["white"]
+    textbox_font = pygame.font.Font(None, textbox_size[1])
     textbox_is_active = False
     
     title_text = "PIPES"
-    title_color = COLORS["passive"]
+    title_color = colors["passive"]
     title_font = pygame.font.Font(None, SCREEN_SIZE[1] // 3)
     
-    ERROR_MARGIN = SCREEN_SIZE[1] // 60
+    error_margin = SCREEN_SIZE[1] // 60
     error_text = ""
-    error_color = COLORS["error"]
+    error_color = colors["error"]
     error_font = pygame.font.Font(None, SCREEN_SIZE[1] // 16)
     
-    INFO_MARGIN = SCREEN_SIZE[1] // 30
+    info_margin = SCREEN_SIZE[1] // 30
     info_text = languages[language]["info"]
-    info_color = COLORS["passive"]
+    info_color = colors["passive"]
     info_font = pygame.font.Font(None, SCREEN_SIZE[1] // 12)
     
     settings_hint_text = languages[language]["settings"]
-    settings_hint_color = COLORS["passive"]
+    settings_hint_color = colors["passive"]
     settings_hint_font = pygame.font.Font(None, SCREEN_SIZE[1] // 16)
     
     credits_text =  languages[language]["credits"]
-    credits_color = COLORS["passive"]
+    credits_color = colors["passive"]
     credits_font = pygame.font.Font(None, SCREEN_SIZE[1] // 12)
     
     # Game Screen Variables
     victory_text = ""
-    victory_color = COLORS["green"]
+    victory_color = colors["green"]
     victory_font = pygame.font.Font(None, SCREEN_SIZE[1] // 3)
     
     timer_text = "00:00"
-    timer_color = COLORS["white"]
+    timer_color = colors["white"]
     timer_font_background = pygame.font.Font(None, SCREEN_SIZE[1] // 2)
     timer_up_space = SCREEN_SIZE[1] // 14
     timer_font_up = pygame.font.Font(None, timer_up_space * 3 // 2)
@@ -511,13 +530,13 @@ def main():
     timer_alpha = 100
     
     victory_timer_text = ""
-    victory_timer_color = COLORS["green"]
+    victory_timer_color = colors["green"]
     victory_timer_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
     
     loading_text = languages[language]["loading"]
-    loading_color = COLORS["loading"]
+    loading_color = colors["loading"]
     loading_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
-    loading_bar_color = COLORS["green"]
+    loading_bar_color = colors["green"]
     loading_bar_rect = {"width": SCREEN_SIZE[0] // 4 * 3, "height": SCREEN_SIZE[1] // 20}
     loading_size_font = pygame.font.Font(None, SCREEN_SIZE[1] // 6)
     
@@ -539,7 +558,7 @@ def main():
     settings_grid_text = languages[language]["grid"]
     
     settings_font = pygame.font.Font(None, SCREEN_SIZE[1] // 8)
-    settings_color = COLORS["white"]
+    settings_color = colors["white"]
     
     # Other Variables
     curr_screen = "starting"
@@ -570,7 +589,7 @@ def main():
                         if ev.key == pygame.K_BACKSPACE:
                             textbox_text = textbox_text[:-1]
                         elif ev.key == pygame.K_RETURN:
-                            input_check = input_is_valid(textbox_text, grid_size_BOUNDS)
+                            input_check = input_is_valid(textbox_text, grid_size_bounds)
                             if input_check == "Clear":
                                 if is_timer_back:
                                     # Timer Back
@@ -600,12 +619,12 @@ def main():
                                 grid_origin = (grid_origin[0] + difference // 2, grid_origin[1] + difference // 2)
                                 grid_back_rect_screen = pygame.Surface((grid_size, grid_size))
                                 grid_back_rect_screen.set_alpha(grid_back_alpha)
-                                curr_back_color = COLORS["grid_back"]
+                                curr_back_color = colors["grid_back"]
                                 
-                                images_resized = resize_images(images_side_length, IMAGES)
+                                images_resized = resize_images(images_side_length, images)
                                 
                                 # --- Loading Screen --- #
-                                screen.fill(BACKGROUND_COLOR)
+                                screen.fill(background_color)
                                 
                                 # Size Text
                                 loading_size_surface = loading_size_font.render(languages[language]["size"] + str(ipt), antialias, loading_color)
@@ -618,9 +637,9 @@ def main():
                                                               (SCREEN_SIZE[1] - loading_surface.get_height()) // 8 * 3))
                                 pygame.display.flip()
                                 
-                                loading_start_time = perf_counter()
+                                # loading_start_time = perf_counter()
                                 game_matrix = get_tubulation(ipt)
-                                print(f"Loading Time ({ipt}):", time_formatter(perf_counter() - loading_start_time))
+                                # print(f"Loading Time ({ipt}):", time_formatter(perf_counter() - loading_start_time))
                                 
                                 scrabble_matrix(game_matrix)
                                 check_connection(game_matrix, images_resized)
@@ -645,9 +664,9 @@ def main():
                                 curr_node = game_matrix[mat_coords[1]][mat_coords[0]]
                                 edges, victory = curr_node.click(game_matrix, clockwise, images_resized)
                                 if loops_exist(game_matrix, images_resized):
-                                    curr_back_color = COLORS["grid_back_loop"]
+                                    curr_back_color = colors["grid_back_loop"]
                                 else:
-                                    curr_back_color = COLORS["grid_back"]
+                                    curr_back_color = colors["grid_back"]
                                 if victory:
                                     victory_text = languages[language]["victory"]
                                     victory_timer_text = time_formatter(perf_counter() - start_time)
@@ -681,21 +700,21 @@ def main():
                         i = themes_map.index(curr_images_theme)
                         i = (i + 1) % len(themes_map)
                         aux = themes_map[i]
-                        change_theme(curr_images_theme, aux, IMAGES, image_color_themes)
+                        change_theme(curr_images_theme, aux, images, image_color_themes)
                         curr_images_theme = aux
                     elif ev.key == pygame.K_g:
                         is_grid_on = not is_grid_on
             if ev.type == pygame.VIDEORESIZE:
                 SCREEN_SIZE = pygame.display.get_window_size()
-                TEXTBOX_SIZE = (SCREEN_SIZE[0] // 8, SCREEN_SIZE[1] // 8)
-                TEXTBOX_POS = (SCREEN_SIZE[0] // 2 - TEXTBOX_SIZE[0] // 2, SCREEN_SIZE[1] // 2)
-                TEXTBOX_PADDING = TEXTBOX_SIZE[1] // 10
-                textbox_rect = pygame.Rect(TEXTBOX_POS, TEXTBOX_SIZE)
+                textbox_size = (SCREEN_SIZE[0] // 8, SCREEN_SIZE[1] // 8)
+                textbox_pos = (SCREEN_SIZE[0] // 2 - textbox_size[0] // 2, SCREEN_SIZE[1] // 2)
+                textbox_padding = textbox_size[1] // 10
+                textbox_rect = pygame.Rect(textbox_pos, textbox_size)
                 
-                ERROR_MARGIN = SCREEN_SIZE[1] // 60
-                INFO_MARGIN = SCREEN_SIZE[1] // 30
+                error_margin = SCREEN_SIZE[1] // 60
+                info_margin = SCREEN_SIZE[1] // 30
                 
-                textbox_font = pygame.font.Font(None, TEXTBOX_SIZE[1])
+                textbox_font = pygame.font.Font(None, textbox_size[1])
                 title_font = pygame.font.Font(None, SCREEN_SIZE[1] // 3)
                 error_font = pygame.font.Font(None, SCREEN_SIZE[1] // 16)
                 info_font = pygame.font.Font(None, SCREEN_SIZE[1] // 12)
@@ -736,7 +755,7 @@ def main():
                     grid_back_rect_screen = pygame.Surface((grid_size, grid_size))
                     grid_back_rect_screen.set_alpha(grid_back_alpha)
                     
-                    images_resized = resize_images(images_side_length, IMAGES)
+                    images_resized = resize_images(images_side_length, images)
                     for _ in game_matrix:
                         for i in _:
                             i.update_image(images_resized)
@@ -748,16 +767,16 @@ def main():
                 
         
         # --- Display Screen --- #
-        screen.fill(BACKGROUND_COLOR)
+        screen.fill(background_color)
         
         if curr_screen == "starting":
             # --- Starting Screen --- #
             
             # Text Box Color
             if textbox_is_active:
-                textbox_color = COLORS["active"]
+                textbox_color = colors["active"]
             else:
-                textbox_color = COLORS["passive"]
+                textbox_color = colors["passive"]
             
             # Title
             title_surface = title_font.render(title_text, antialias, title_color)
@@ -767,22 +786,22 @@ def main():
             # Text Box
             pygame.draw.rect(screen, textbox_color, textbox_rect)
             textbox_surface = textbox_font.render(languages[language]["size"] + textbox_text, antialias, textbox_text_color)
-            textbox_rect.w = textbox_surface.get_width() + TEXTBOX_PADDING * 2
-            textbox_rect.h = textbox_surface.get_height() + TEXTBOX_PADDING * 2
+            textbox_rect.w = textbox_surface.get_width() + textbox_padding * 2
+            textbox_rect.h = textbox_surface.get_height() + textbox_padding * 2
             textbox_rect.left = (SCREEN_SIZE[0] - textbox_rect.width) // 2
             textbox_rect.top = (SCREEN_SIZE[1]) // 2
-            textbox_surface_pos = (textbox_rect.left + TEXTBOX_PADDING, textbox_rect.bottom - textbox_surface.get_height() - TEXTBOX_PADDING)
+            textbox_surface_pos = (textbox_rect.left + textbox_padding, textbox_rect.bottom - textbox_surface.get_height() - textbox_padding)
             screen.blit(textbox_surface, textbox_surface_pos)
             
             # Info Text
             info_surface = info_font.render(info_text, antialias, info_color)
             screen.blit(info_surface, ((SCREEN_SIZE [0] - info_surface.get_width()) // 2,
-                                        textbox_rect.top - info_surface.get_height() - INFO_MARGIN))
+                                        textbox_rect.top - info_surface.get_height() - info_margin))
             
             # Error Message
             error_surface = error_font.render(error_text, antialias, error_color)
             screen.blit(error_surface, ((SCREEN_SIZE [0] - error_surface.get_width()) // 2,
-                                        textbox_rect.bottom + ERROR_MARGIN))
+                                        textbox_rect.bottom + error_margin))
             
             # Settings Hint
             settings_hint_surface = settings_hint_font.render(settings_hint_text, antialias, settings_hint_color)
@@ -818,9 +837,9 @@ def main():
             # Grid
             if is_grid_on:
                 for x in range(grid_origin[0], grid_origin[0] + grid_size + 1, images_side_length):
-                    pygame.draw.line(screen, COLORS["grid_lines"], (x, grid_origin[1]), (x, grid_origin[1] + grid_size))
+                    pygame.draw.line(screen, colors["grid_lines"], (x, grid_origin[1]), (x, grid_origin[1] + grid_size))
                 for y in range(grid_origin[1], grid_origin[1] + grid_size + 1, images_side_length):
-                    pygame.draw.line(screen, COLORS["grid_lines"], (grid_origin[0], y), (grid_origin[0] + grid_size, y))
+                    pygame.draw.line(screen, colors["grid_lines"], (grid_origin[0], y), (grid_origin[0] + grid_size, y))
             
             # Display Game Matrix
             for row in game_matrix:
@@ -880,14 +899,14 @@ def main():
                                                 SCREEN_SIZE[1] // options * 4 - settings_grid_surface.get_height() // 2))
             
             grid_icon_pos = (r_cen - settings_icons_size // 2, SCREEN_SIZE[1] // options * 4 - settings_icons_size // 2)
-            pygame.draw.rect(screen, COLORS["grid_back_solid"], pygame.Rect(grid_icon_pos,(settings_icons_size, settings_icons_size)))
+            pygame.draw.rect(screen, colors["grid_back_solid"], pygame.Rect(grid_icon_pos,(settings_icons_size, settings_icons_size)))
             if is_grid_on:
                 grid_icon_end = (grid_icon_pos[0] + settings_icons_size, grid_icon_pos[1] + settings_icons_size)
                 grid_icon_step = settings_icons_size // 4
                 for x in range(grid_icon_pos[0], grid_icon_end[0] + 1, grid_icon_step):
-                    pygame.draw.line(screen, COLORS["grid_lines"], (x, grid_icon_pos[1]), (x, grid_icon_pos[1] + settings_icons_size))
+                    pygame.draw.line(screen, colors["grid_lines"], (x, grid_icon_pos[1]), (x, grid_icon_pos[1] + settings_icons_size))
                 for y in range(grid_icon_pos[1], grid_icon_end[1] + 1, grid_icon_step):
-                    pygame.draw.line(screen, COLORS["grid_lines"], (grid_icon_pos[0], y), (grid_icon_pos[0] + settings_icons_size, y))
+                    pygame.draw.line(screen, colors["grid_lines"], (grid_icon_pos[0], y), (grid_icon_pos[0] + settings_icons_size, y))
         
         # Center Check
         # pygame.draw.line(screen, (0, 0, 0), (SCREEN_SIZE[0] // 2, 0), (SCREEN_SIZE[0] // 2, SCREEN_SIZE[1]))
