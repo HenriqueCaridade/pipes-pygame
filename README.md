@@ -39,6 +39,9 @@ Uma vez que todos os "nodes" recetores estam a receber água da fonte central o 
 
 - Pygame
 - Numpy
+- Time
+- Typing
+- Platform
 
 ### Tarefas
 
