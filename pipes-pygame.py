@@ -425,7 +425,7 @@ def main():
     background_color = colors["background"]
     images = get_images()
     images_side_length = 360
-    grid_size_bounds = (4, 30)
+    grid_size_bounds = (4, 25)
     
     image_color_themes = {"default": ((100,180,230), # Light Blue (Water)
                                       (60,60,150), # Dark blue (Center Node)
